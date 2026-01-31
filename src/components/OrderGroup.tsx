@@ -16,6 +16,7 @@ import {
   Send,
   CheckSquare,
   Square,
+  AlertTriangle,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -116,12 +117,14 @@ function MiniCard({
 function FullCard({
   order,
   onOpenDetails,
+  onUpdateOrder,
   selectable,
   selected,
   onToggleSelect,
 }: {
   order: Order;
   onOpenDetails: (order: Order) => void;
+  onUpdateOrder: (order: Order) => void;
   selectable?: boolean;
   selected?: boolean;
   onToggleSelect?: (id: string) => void;
@@ -135,14 +138,33 @@ function FullCard({
     setTimeout(() => setCopied(false), 2000);
   };
 
-  const statusBorderClass =
-    order.artStatus === "SHIPPED"
-      ? "border-l-4 border-l-purple-500 bg-purple-500/10"
-      : order.artStatus === "PRODUCTION"
-      ? "border-l-4 border-l-blue-500 bg-blue-500/10"
-      : order.artStatus === "APPROVED"
-      ? "border-l-4 border-l-green-500 bg-green-500/10"
-      : "border-l-4 border-l-yellow-500 bg-yellow-500/10";
+  const toggleUrgent = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    try {
+      const response = await fetch(`/api/orders/${order.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ isUrgent: !order.isUrgent }),
+      });
+      if (response.ok) {
+        const updated = await response.json();
+        onUpdateOrder(updated);
+      }
+    } catch (err) {
+      console.error("Erro ao atualizar urgência:", err);
+    }
+  };
+
+  // Se urgente, usa vermelho independente do status
+  const statusBorderClass = order.isUrgent
+    ? "border-l-4 border-l-red-500 bg-red-500/10"
+    : order.artStatus === "SHIPPED"
+    ? "border-l-4 border-l-purple-500 bg-purple-500/10"
+    : order.artStatus === "PRODUCTION"
+    ? "border-l-4 border-l-blue-500 bg-blue-500/10"
+    : order.artStatus === "APPROVED"
+    ? "border-l-4 border-l-green-500 bg-green-500/10"
+    : "border-l-4 border-l-yellow-500 bg-yellow-500/10";
 
   return (
     <Card
@@ -169,6 +191,19 @@ function FullCard({
           <CardTitle className="text-sm font-medium line-clamp-2 flex-1">
             {order.productName}
           </CardTitle>
+          {(order.artStatus === "PENDING" || order.artStatus === "APPROVED" || order.artStatus === "PRODUCTION") && (
+            <button
+              onClick={toggleUrgent}
+              className={`p-1 rounded transition-colors ${
+                order.isUrgent
+                  ? "text-red-500 bg-red-500/20 hover:bg-red-500/30"
+                  : "text-muted-foreground hover:text-red-500 hover:bg-red-500/10"
+              }`}
+              title={order.isUrgent ? "Remover urgência" : "Marcar como urgente"}
+            >
+              <AlertTriangle className="h-4 w-4" />
+            </button>
+          )}
           <StatusBadge status={order.artStatus} />
         </div>
       </CardHeader>
@@ -399,6 +434,7 @@ export function OrderGroup({ orders, onUpdateOrder, onOpenDetails, selectable, s
               <FullCard
                 order={order}
                 onOpenDetails={onOpenDetails}
+                onUpdateOrder={onUpdateOrder}
                 selectable={selectable}
                 selected={selectedIds?.has(order.id)}
                 onToggleSelect={onToggleSelect}

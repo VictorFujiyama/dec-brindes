@@ -28,6 +28,7 @@ model Order {
   artPngUrl          String?   // URL do arquivo PNG da arte
   artCdrUrl          String?   // URL do arquivo CDR da arte
   shippedAt          DateTime? // Data que foi marcado como enviado
+  isUrgent           Boolean   @default(false) // Pedido urgente
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

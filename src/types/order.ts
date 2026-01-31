@@ -19,6 +19,7 @@ export interface Order {
   artPngUrl: string | null;
   artCdrUrl: string | null;
   shippedAt: Date | null;
+  isUrgent: boolean;
   createdAt: Date;
   updatedAt: Date;
 }
