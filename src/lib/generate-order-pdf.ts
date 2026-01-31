@@ -11,8 +11,6 @@ function generateOrderNote(order: Order, dateInfo: { day: string; month: string;
   const description = order.internalNote ||
     `${order.productName}${order.variation ? ` - ${order.variation}` : ""}`;
 
-  const descriptionLines = description.split("\n").slice(0, 12);
-
   return `
     <div class="note">
       <!-- HEADER -->
@@ -31,13 +29,13 @@ function generateOrderNote(order: Order, dateInfo: { day: string; month: string;
       <div class="body">
         <!-- Cliente -->
         <div class="row">
-          <span class="label">Cliente</span>
+          <span class="label">Cliente:</span>
           <span class="value-underline">${order.artName || ""}</span>
         </div>
 
-        <!-- Comprador + ID -->
+        <!-- ID -->
         <div class="row">
-          <span class="label">comprador</span>
+          <span class="label">ID:</span>
           <span class="value-underline">${order.shopeeOrderId}</span>
         </div>
 
@@ -45,15 +43,28 @@ function generateOrderNote(order: Order, dateInfo: { day: string; month: string;
         <div class="table-container">
           <div class="table-header">
             <div class="th-quant">QUANT.</div>
-            <div class="th-desc">DESCRIÇÃO</div>
+            <div class="th-desc">DESCRICAO</div>
           </div>
           <div class="table-body">
             <!-- Linhas fixas de fundo -->
             <div class="table-lines">
-              ${Array(15).fill(0).map((_, i) => `<div class="table-line" style="top: ${i * 7}mm;"></div>`).join("")}
+              <div class="table-line" style="top: 0;"></div>
+              <div class="table-line" style="top: 7mm;"></div>
+              <div class="table-line" style="top: 14mm;"></div>
+              <div class="table-line" style="top: 21mm;"></div>
+              <div class="table-line" style="top: 28mm;"></div>
+              <div class="table-line" style="top: 35mm;"></div>
+              <div class="table-line" style="top: 42mm;"></div>
+              <div class="table-line" style="top: 49mm;"></div>
+              <div class="table-line" style="top: 56mm;"></div>
+              <div class="table-line" style="top: 63mm;"></div>
+              <div class="table-line" style="top: 70mm;"></div>
+              <div class="table-line" style="top: 77mm;"></div>
+              <div class="table-line" style="top: 84mm;"></div>
+              <div class="table-line" style="top: 91mm;"></div>
             </div>
             <div class="table-line-vertical"></div>
-            <!-- Conteúdo -->
+            <!-- Conteudo -->
             <div class="table-content">
               <div class="table-row">
                 <div class="td-quant">${order.quantity}</div>
@@ -65,7 +76,7 @@ function generateOrderNote(order: Order, dateInfo: { day: string; month: string;
 
         <!-- Data -->
         <div class="footer-row">
-          <span class="label">Data</span>
+          <span class="label">Data:</span>
           <span class="date-num">${dateInfo.day}</span>
           <span class="date-sep">/</span>
           <span class="date-num">${dateInfo.month}</span>
@@ -73,12 +84,17 @@ function generateOrderNote(order: Order, dateInfo: { day: string; month: string;
           <span class="date-num">${dateInfo.year}</span>
         </div>
 
-        <!-- Obs -->
-        <div class="obs-row">
-          <span class="label">Obs.:</span>
-          <span class="obs-value">${order.internalNote || ""}</span>
+        <!-- Obs (2 linhas) -->
+        <div class="obs-container">
+          <div class="obs-lines">
+            <div class="obs-line" style="top: 7mm;"></div>
+            <div class="obs-line" style="top: 14mm;"></div>
+          </div>
+          <div class="obs-content">
+            <span class="label">Obs.:</span>
+            <span class="obs-value">${order.internalNote || ""}</span>
+          </div>
         </div>
-        <div class="obs-line"></div>
 
         <!-- Assinaturas -->
         <div class="signatures">
@@ -135,7 +151,7 @@ export function generateOrdersPDF(orders: Order[]): void {
           width: 287mm;
           height: 200mm;
           display: flex;
-          justify-content: center;
+          justify-content: flex-start;
           gap: 6mm;
           page-break-after: always;
           padding: 2mm;
@@ -213,19 +229,13 @@ export function generateOrdersPDF(orders: Order[]): void {
           min-height: 5mm;
         }
 
-        .row-right {
-          justify-content: flex-end;
+        .body .row:nth-child(2) {
+          margin-bottom: 10px;
         }
 
         .label {
           font-size: 14px;
           margin-right: 2mm;
-        }
-
-        .label-small {
-          font-size: 14px;
-          margin-left: 3mm;
-          margin-right: 1mm;
         }
 
         .value-underline {
@@ -234,8 +244,8 @@ export function generateOrdersPDF(orders: Order[]): void {
           font-weight: bold;
           border-bottom: 1px solid black;
           padding-bottom: 1px;
+          transform: translateY(2px);
         }
-
 
         /* TABLE */
         .table-container {
@@ -244,6 +254,8 @@ export function generateOrdersPDF(orders: Order[]): void {
           flex-direction: column;
           margin-top: 1mm;
           border: 1px solid black;
+          border-radius: 4px;
+          overflow: hidden;
         }
 
         .table-header {
@@ -269,7 +281,7 @@ export function generateOrdersPDF(orders: Order[]): void {
         .table-body {
           flex: 1;
           position: relative;
-          min-height: 105mm;
+          height: 96mm;
         }
 
         .table-lines {
@@ -311,16 +323,17 @@ export function generateOrdersPDF(orders: Order[]): void {
         .td-quant {
           width: 18mm;
           text-align: center;
-          font-size: 24px;
+          font-size: 6mm;
           font-weight: bold;
-          padding: 1mm;
+          padding: 0.5mm;
+          line-height: 7mm;
         }
 
         .td-desc {
           flex: 1;
-          font-size: 22px;
+          font-size: 6mm;
           font-weight: bold;
-          padding: 1mm 2mm;
+          padding: 0.5mm 2mm;
           line-height: 7mm;
         }
 
@@ -330,14 +343,13 @@ export function generateOrdersPDF(orders: Order[]): void {
           align-items: center;
           margin-top: 2mm;
           padding-top: 2mm;
-          border-top: 1px solid black;
         }
 
         .date-num {
-          font-size: 18px;
+          font-size: 22px;
           font-weight: bold;
           text-decoration: underline;
-          margin: 0 1mm;
+          margin: 0mm 1mm;
         }
 
         .date-sep {
@@ -345,30 +357,50 @@ export function generateOrdersPDF(orders: Order[]): void {
         }
 
         /* OBS */
-        .obs-row {
-          display: flex;
-          align-items: baseline;
+        .obs-container {
           margin-top: 2mm;
+          position: relative;
+          height: 21mm;
         }
 
-        .obs-value {
-          font-size: 14px;
-          font-weight: bold;
-          text-decoration: underline;
-          margin-left: 1mm;
+        .obs-lines {
+          position: absolute;
+          top: 0;
+          left: 0;
+          right: 0;
+          bottom: 0;
         }
 
         .obs-line {
+          position: absolute;
+          left: 0;
+          right: 0;
+          height: 0;
           border-bottom: 1px solid black;
-          margin-top: 1mm;
-          height: 4mm;
+        }
+
+        .obs-content {
+          position: relative;
+          z-index: 1;
+          display: flex;
+          align-items: baseline;
+          height: 7mm;
+          line-height: 7mm;
+          padding-top: 1mm;
+        }
+
+        .obs-value {
+          flex: 1;
+          font-size: 22px;
+          font-weight: bold;
+          margin-left: 1mm;
         }
 
         /* SIGNATURES */
         .signatures {
           display: flex;
           justify-content: space-between;
-          margin-top: 4mm;
+          margin-top: -2mm;
           padding: 0 5mm;
           align-items: flex-end;
         }
