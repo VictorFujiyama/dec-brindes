@@ -1,9 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { MessageSquare, Package, Copy, Calendar, Check, X, User, Factory, ArrowLeft, CheckSquare, Square, Send } from "lucide-react";
+import { MessageSquare, Package, Copy, Calendar, Check, X, User, Factory, ArrowLeft, CheckSquare, Square, Send, Upload, Download, Image, FileIcon, Trash2 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -29,6 +29,46 @@ export function OrderCard({ order, onUpdateOrder, selectable, selected, onToggle
   const [internalNote, setInternalNote] = useState(order.internalNote || "");
   const [isSaving, setIsSaving] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
+  const pngInputRef = useRef<HTMLInputElement>(null);
+  const cdrInputRef = useRef<HTMLInputElement>(null);
+
+  const handleFileUpload = async (file: File, type: "png" | "cdr") => {
+    setIsUploading(true);
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("type", type);
+
+      const response = await fetch(`/api/orders/${order.id}/upload`, {
+        method: "POST",
+        body: formData,
+      });
+
+      if (response.ok) {
+        const updated = await response.json();
+        onUpdateOrder(updated);
+      }
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  const handleDeleteFile = async (type: "png" | "cdr") => {
+    setIsUploading(true);
+    try {
+      const response = await fetch(`/api/orders/${order.id}/upload?type=${type}`, {
+        method: "DELETE",
+      });
+
+      if (response.ok) {
+        const updated = await response.json();
+        onUpdateOrder(updated);
+      }
+    } finally {
+      setIsUploading(false);
+    }
+  };
 
   const copyOrderId = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -138,9 +178,21 @@ export function OrderCard({ order, onUpdateOrder, selectable, selected, onToggle
           )}
           <div className="flex items-center justify-between">
             <DaysUntilBadge shippingDate={order.shippingDate} />
-            {order.customerNote && (
-              <MessageSquare className="h-4 w-4 text-blue-500" />
-            )}
+            <div className="flex items-center gap-1">
+              {order.artPngUrl && (
+                <span title="PNG enviado">
+                  <Image className="h-4 w-4 text-green-500" />
+                </span>
+              )}
+              {order.artCdrUrl && (
+                <span title="CDR enviado">
+                  <FileIcon className="h-4 w-4 text-orange-500" />
+                </span>
+              )}
+              {order.customerNote && (
+                <MessageSquare className="h-4 w-4 text-blue-500" />
+              )}
+            </div>
           </div>
           {order.artStatus === "PRODUCTION" && order.sentToProductionAt && (
             <div className="flex items-center gap-1 text-xs text-blue-400 mt-1">
@@ -238,6 +290,116 @@ export function OrderCard({ order, onUpdateOrder, selectable, selected, onToggle
               >
                 Salvar Anotacao
               </Button>
+            </div>
+
+            {/* Arquivos da Arte */}
+            <div className="space-y-3 pt-4 border-t">
+              <label className="text-sm font-medium">Arquivos da Arte:</label>
+
+              {/* PNG Preview e Upload */}
+              <div className="space-y-2">
+                {order.artPngUrl ? (
+                  <div className="relative">
+                    <img
+                      src={order.artPngUrl}
+                      alt="Preview da arte"
+                      className="w-full max-h-48 object-contain rounded-lg bg-muted"
+                    />
+                    <div className="flex gap-2 mt-2">
+                      <a
+                        href={order.artPngUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex-1"
+                      >
+                        <Button variant="outline" size="sm" className="w-full">
+                          <Download className="h-4 w-4 mr-2" />
+                          Baixar PNG
+                        </Button>
+                      </a>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleDeleteFile("png")}
+                        disabled={isUploading}
+                        className="text-red-500 hover:text-red-600"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  <div
+                    onClick={() => pngInputRef.current?.click()}
+                    className="border-2 border-dashed border-muted-foreground/30 rounded-lg p-4 text-center cursor-pointer hover:border-muted-foreground/50 transition-colors"
+                  >
+                    <Image className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
+                    <p className="text-sm text-muted-foreground">
+                      {isUploading ? "Enviando..." : "Clique para enviar PNG"}
+                    </p>
+                  </div>
+                )}
+                <input
+                  ref={pngInputRef}
+                  type="file"
+                  accept=".png,image/png"
+                  className="hidden"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) handleFileUpload(file, "png");
+                    e.target.value = "";
+                  }}
+                />
+              </div>
+
+              {/* CDR Upload */}
+              <div className="space-y-2">
+                {order.artCdrUrl ? (
+                  <div className="flex gap-2">
+                    <a
+                      href={order.artCdrUrl}
+                      download
+                      className="flex-1"
+                    >
+                      <Button variant="outline" size="sm" className="w-full">
+                        <FileIcon className="h-4 w-4 mr-2" />
+                        Baixar CDR
+                      </Button>
+                    </a>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleDeleteFile("cdr")}
+                      disabled={isUploading}
+                      className="text-red-500 hover:text-red-600"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                ) : (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="w-full"
+                    onClick={() => cdrInputRef.current?.click()}
+                    disabled={isUploading}
+                  >
+                    <Upload className="h-4 w-4 mr-2" />
+                    {isUploading ? "Enviando..." : "Enviar arquivo CDR"}
+                  </Button>
+                )}
+                <input
+                  ref={cdrInputRef}
+                  type="file"
+                  accept=".cdr"
+                  className="hidden"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) handleFileUpload(file, "cdr");
+                    e.target.value = "";
+                  }}
+                />
+              </div>
             </div>
 
             <div className="flex flex-col gap-2 pt-4 border-t">

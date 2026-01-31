@@ -16,6 +16,8 @@ export interface Order {
   artName: string | null;
   internalNote: string | null;
   sentToProductionAt: Date | null;
+  artPngUrl: string | null;
+  artCdrUrl: string | null;
   createdAt: Date;
   updatedAt: Date;
 }

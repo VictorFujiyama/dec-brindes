@@ -3,7 +3,9 @@
 import { useMemo, useState } from "react";
 import { Pencil, Check, X } from "lucide-react";
 import { Order, GroupedOrders } from "@/types/order";
+import { OrderGroup } from "./OrderGroup";
 import { OrderCard } from "./OrderCard";
+import { OrderDetailsModal } from "./OrderDetailsModal";
 import { BatchActions } from "./BatchActions";
 import { ProductionDateFilter } from "./ProductionDateFilter";
 import { format } from "date-fns";
@@ -120,6 +122,7 @@ function GroupHeader({
 export function OrderTable({ orders, onUpdateOrder, onUpdateMultiple, selectable, showProductionFilter }: OrderTableProps) {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [selectedProductionDate, setSelectedProductionDate] = useState<string | null>(null);
+  const [detailsOrder, setDetailsOrder] = useState<Order | null>(null);
 
   // Filtra por data de produção se selecionada
   const filteredByDate = useMemo(() => {
@@ -235,20 +238,41 @@ export function OrderTable({ orders, onUpdateOrder, onUpdateMultiple, selectable
         <div key={group.customerUser} className="space-y-4">
           <GroupHeader group={group} onUpdateMultiple={onUpdateMultiple} />
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {group.orders.map((order) => (
-              <OrderCard
-                key={order.id}
-                order={order}
-                onUpdateOrder={onUpdateOrder}
-                selectable={selectable}
-                selected={selectedIds.has(order.id)}
-                onToggleSelect={toggleSelect}
-              />
-            ))}
-          </div>
+          {selectable ? (
+            // Modo seleção (para batch) - usa cards em grid
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {group.orders.map((order) => (
+                <OrderCard
+                  key={order.id}
+                  order={order}
+                  onUpdateOrder={onUpdateOrder}
+                  selectable={selectable}
+                  selected={selectedIds.has(order.id)}
+                  onToggleSelect={toggleSelect}
+                />
+              ))}
+            </div>
+          ) : (
+            // Modo normal - usa layout com upload ao lado
+            <OrderGroup
+              orders={group.orders}
+              onUpdateOrder={onUpdateOrder}
+              onOpenDetails={setDetailsOrder}
+            />
+          )}
         </div>
       ))}
+
+      {detailsOrder && (
+        <OrderDetailsModal
+          order={detailsOrder}
+          onClose={() => setDetailsOrder(null)}
+          onUpdateOrder={(updated) => {
+            onUpdateOrder(updated);
+            setDetailsOrder(updated);
+          }}
+        />
+      )}
     </div>
   );
 }
