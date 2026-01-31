@@ -197,7 +197,7 @@ export function OrderTable({ orders, onUpdateOrder, onUpdateMultiple, selectable
     }
 
     return Object.values(groups).sort(
-      (a, b) => b.earliestShipping.getTime() - a.earliestShipping.getTime()
+      (a, b) => a.earliestShipping.getTime() - b.earliestShipping.getTime()
     );
   }, [filteredByDate]);
 

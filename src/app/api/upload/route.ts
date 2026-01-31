@@ -91,7 +91,8 @@ export async function POST(request: NextRequest) {
           },
           data: {
             artStatus: "SHIPPED",
-            shippedAt: new Date()
+            shippedAt: new Date(),
+            inDailyQueue: false
           }
         });
 

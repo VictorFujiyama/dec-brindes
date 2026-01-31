@@ -25,7 +25,7 @@ export async function GET(request: NextRequest) {
 
     const orders = await prisma.order.findMany({
       where,
-      orderBy: { shippingDate: "desc" },
+      orderBy: { shippingDate: "asc" },
     });
 
     return NextResponse.json(orders);

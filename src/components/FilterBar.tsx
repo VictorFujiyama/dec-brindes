@@ -31,8 +31,10 @@ export function FilterBar({
   onClearDailyQueue,
 }: FilterBarProps) {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isClearDialogOpen, setIsClearDialogOpen] = useState(false);
   const [orderCount, setOrderCount] = useState("15");
   const [isGenerating, setIsGenerating] = useState(false);
+  const [isClearing, setIsClearing] = useState(false);
 
   const tabs = [
     { value: "ALL", label: "Todos" },
@@ -54,8 +56,11 @@ export function FilterBar({
   };
 
   const handleClear = async () => {
-    if (onClearDailyQueue && confirm("Limpar todos os pedidos do dia?")) {
+    if (onClearDailyQueue) {
+      setIsClearing(true);
       await onClearDailyQueue();
+      setIsClearing(false);
+      setIsClearDialogOpen(false);
     }
   };
 
@@ -119,7 +124,7 @@ export function FilterBar({
               <Button
                 variant="outline"
                 size="sm"
-                onClick={handleClear}
+                onClick={() => setIsClearDialogOpen(true)}
                 className="text-red-500 border-red-500/50 hover:bg-red-500/10"
               >
                 <Trash2 className="h-4 w-4 mr-1" />
@@ -172,6 +177,31 @@ export function FilterBar({
                 className="bg-orange-500 hover:bg-orange-600"
               >
                 {isGenerating ? "Gerando..." : "Gerar"}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={isClearDialogOpen} onOpenChange={setIsClearDialogOpen}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Limpar Pedidos do Dia</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <p className="text-sm text-muted-foreground">
+              Tem certeza que deseja remover todos os <strong>{dailyQueueCount} pedido(s)</strong> da fila do dia?
+            </p>
+            <div className="flex gap-2 justify-end">
+              <Button variant="outline" onClick={() => setIsClearDialogOpen(false)}>
+                Cancelar
+              </Button>
+              <Button
+                onClick={handleClear}
+                disabled={isClearing}
+                variant="destructive"
+              >
+                {isClearing ? "Limpando..." : "Limpar"}
               </Button>
             </div>
           </div>

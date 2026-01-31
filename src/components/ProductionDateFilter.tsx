@@ -33,9 +33,9 @@ export function ProductionDateFilter({
       }
     }
 
-    // Ordena do mais recente para o mais antigo
+    // Ordena do mais antigo para o mais recente
     return Array.from(datesMap.entries())
-      .sort((a, b) => b[1].date.getTime() - a[1].date.getTime())
+      .sort((a, b) => a[1].date.getTime() - b[1].date.getTime())
       .map(([key, value]) => ({
         key,
         label: format(value.date, "dd/MM/yyyy (EEEE)", { locale: ptBR }),
