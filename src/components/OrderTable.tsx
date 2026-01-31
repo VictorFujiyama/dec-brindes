@@ -1,0 +1,254 @@
+"use client";
+
+import { useMemo, useState } from "react";
+import { Pencil, Check, X } from "lucide-react";
+import { Order, GroupedOrders } from "@/types/order";
+import { OrderCard } from "./OrderCard";
+import { BatchActions } from "./BatchActions";
+import { ProductionDateFilter } from "./ProductionDateFilter";
+import { format } from "date-fns";
+
+interface OrderTableProps {
+  orders: Order[];
+  onUpdateOrder: (order: Order) => void;
+  onUpdateMultiple: (orders: Order[]) => void;
+  selectable?: boolean;
+  showProductionFilter?: boolean;
+}
+
+function GroupHeader({
+  group,
+  onUpdateMultiple,
+}: {
+  group: GroupedOrders;
+  onUpdateMultiple: (orders: Order[]) => void;
+}) {
+  const [isEditing, setIsEditing] = useState(false);
+  const [artName, setArtName] = useState(group.orders[0]?.artName || "");
+  const [isSaving, setIsSaving] = useState(false);
+
+  const displayName = group.orders[0]?.artName || `@${group.customerUser}`;
+
+  const handleSave = async () => {
+    setIsSaving(true);
+    const updatedOrders: Order[] = [];
+
+    for (const order of group.orders) {
+      const response = await fetch(`/api/orders/${order.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ artName: artName || null }),
+      });
+      if (response.ok) {
+        const updated = await response.json();
+        updatedOrders.push(updated);
+      }
+    }
+
+    if (updatedOrders.length > 0) {
+      onUpdateMultiple(updatedOrders);
+    }
+    setIsEditing(false);
+    setIsSaving(false);
+  };
+
+  const handleCancel = () => {
+    setArtName(group.orders[0]?.artName || "");
+    setIsEditing(false);
+  };
+
+  return (
+    <div className="flex items-center justify-between border-b pb-2">
+      <div>
+        {isEditing ? (
+          <div className="flex items-center gap-2">
+            <input
+              type="text"
+              value={artName}
+              onChange={(e) => setArtName(e.target.value)}
+              placeholder={`@${group.customerUser}`}
+              className="bg-muted px-2 py-1 rounded text-sm font-semibold w-48 focus:outline-none focus:ring-2 focus:ring-primary"
+              autoFocus
+              disabled={isSaving}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") handleSave();
+                if (e.key === "Escape") handleCancel();
+              }}
+            />
+            <button
+              onClick={handleSave}
+              disabled={isSaving}
+              className="p-1 hover:bg-green-500/20 rounded text-green-500 disabled:opacity-50"
+              title="Salvar"
+            >
+              <Check className="h-4 w-4" />
+            </button>
+            <button
+              onClick={handleCancel}
+              disabled={isSaving}
+              className="p-1 hover:bg-red-500/20 rounded text-red-500 disabled:opacity-50"
+              title="Cancelar"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+        ) : (
+          <div className="flex items-center gap-2">
+            <h3 className="font-semibold">{displayName}</h3>
+            <button
+              onClick={() => setIsEditing(true)}
+              className="p-1 hover:bg-muted rounded text-muted-foreground hover:text-foreground"
+              title="Editar nome da arte"
+            >
+              <Pencil className="h-3 w-3" />
+            </button>
+          </div>
+        )}
+        <p className="text-sm text-muted-foreground">
+          {group.orders.length} pedido(s), {group.totalItems} item(ns)
+        </p>
+      </div>
+      {group.allApproved && (
+        <span className="text-xs bg-green-500/20 text-green-400 px-2 py-1 rounded">
+          Todas artes aprovadas
+        </span>
+      )}
+    </div>
+  );
+}
+
+export function OrderTable({ orders, onUpdateOrder, onUpdateMultiple, selectable, showProductionFilter }: OrderTableProps) {
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [selectedProductionDate, setSelectedProductionDate] = useState<string | null>(null);
+
+  // Filtra por data de produção se selecionada
+  const filteredByDate = useMemo(() => {
+    if (!showProductionFilter || !selectedProductionDate) return orders;
+    return orders.filter((order) => {
+      if (!order.sentToProductionAt) return false;
+      const orderDate = format(new Date(order.sentToProductionAt), "yyyy-MM-dd");
+      return orderDate === selectedProductionDate;
+    });
+  }, [orders, selectedProductionDate, showProductionFilter]);
+
+  const toggleSelect = (id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
+  };
+
+  const selectAll = () => {
+    setSelectedIds(new Set(filteredByDate.map((o) => o.id)));
+  };
+
+  const deselectAll = () => {
+    setSelectedIds(new Set());
+  };
+
+  const handleSendToProduction = async (orderIds: string[]) => {
+    const response = await fetch("/api/orders/batch", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ids: orderIds, artStatus: "PRODUCTION" }),
+    });
+
+    if (response.ok) {
+      const updated = await response.json();
+      onUpdateMultiple(updated);
+      setSelectedIds(new Set());
+    }
+  };
+
+  const groupedOrders = useMemo(() => {
+    const groups: Record<string, GroupedOrders> = {};
+
+    for (const order of filteredByDate) {
+      if (!groups[order.customerUser]) {
+        groups[order.customerUser] = {
+          customerUser: order.customerUser,
+          customerName: order.customerName,
+          orders: [],
+          totalItems: 0,
+          earliestShipping: new Date(order.shippingDate),
+          allApproved: true,
+        };
+      }
+
+      const group = groups[order.customerUser];
+      group.orders.push(order);
+      group.totalItems += order.quantity;
+
+      const orderShippingDate = new Date(order.shippingDate);
+      if (orderShippingDate < group.earliestShipping) {
+        group.earliestShipping = orderShippingDate;
+      }
+
+      if (order.artStatus !== "APPROVED") {
+        group.allApproved = false;
+      }
+    }
+
+    return Object.values(groups).sort(
+      (a, b) => b.earliestShipping.getTime() - a.earliestShipping.getTime()
+    );
+  }, [filteredByDate]);
+
+  if (orders.length === 0) {
+    return (
+      <div className="text-center py-12 text-muted-foreground">
+        <p>Nenhum pedido encontrado.</p>
+        <p className="text-sm mt-1">
+          Importe um arquivo da Shopee para comecar.
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-8">
+      {showProductionFilter && (
+        <ProductionDateFilter
+          orders={orders}
+          selectedDate={selectedProductionDate}
+          onDateChange={setSelectedProductionDate}
+        />
+      )}
+
+      {selectable && (
+        <BatchActions
+          orders={filteredByDate}
+          selectedIds={selectedIds}
+          onToggleSelect={toggleSelect}
+          onSelectAll={selectAll}
+          onDeselectAll={deselectAll}
+          onSendToProduction={handleSendToProduction}
+        />
+      )}
+
+      {groupedOrders.map((group) => (
+        <div key={group.customerUser} className="space-y-4">
+          <GroupHeader group={group} onUpdateMultiple={onUpdateMultiple} />
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {group.orders.map((order) => (
+              <OrderCard
+                key={order.id}
+                order={order}
+                onUpdateOrder={onUpdateOrder}
+                selectable={selectable}
+                selected={selectedIds.has(order.id)}
+                onToggleSelect={toggleSelect}
+              />
+            ))}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}

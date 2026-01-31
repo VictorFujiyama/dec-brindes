@@ -1,0 +1,42 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+model Order {
+  id            String    @id @default(cuid())
+  shopeeOrderId String    @unique
+  customerUser  String
+  customerName  String
+  productName   String
+  variation     String?
+  quantity      Int
+  totalValue    Float
+  customerNote  String?
+  shippingDate  DateTime
+  orderDate     DateTime
+
+  artStatus          ArtStatus @default(PENDING)
+  artName            String?   // Nome da arte (editavel)
+  internalNote       String?
+  sentToProductionAt DateTime? // Data de envio para producao (para agrupar lotes)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([customerUser])
+  @@index([artStatus])
+  @@index([shippingDate])
+  @@index([sentToProductionAt])
+}
+
+enum ArtStatus {
+  PENDING
+  APPROVED
+  PRODUCTION
+}
