@@ -14,6 +14,8 @@ import {
   FileIcon,
   Trash2,
   Send,
+  CheckSquare,
+  Square,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -24,6 +26,9 @@ interface OrderGroupProps {
   orders: Order[];
   onUpdateOrder: (order: Order) => void;
   onOpenDetails: (order: Order) => void;
+  selectable?: boolean;
+  selectedIds?: Set<string>;
+  onToggleSelect?: (id: string) => void;
 }
 
 function MiniCard({
@@ -109,9 +114,15 @@ function MiniCard({
 function FullCard({
   order,
   onOpenDetails,
+  selectable,
+  selected,
+  onToggleSelect,
 }: {
   order: Order;
   onOpenDetails: (order: Order) => void;
+  selectable?: boolean;
+  selected?: boolean;
+  onToggleSelect?: (id: string) => void;
 }) {
   const [copied, setCopied] = useState(false);
 
@@ -136,7 +147,22 @@ function FullCard({
     >
       <CardHeader className="pb-2">
         <div className="flex items-start justify-between gap-2">
-          <CardTitle className="text-sm font-medium line-clamp-2">
+          {selectable && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onToggleSelect?.(order.id);
+              }}
+              className="mt-0.5 flex-shrink-0"
+            >
+              {selected ? (
+                <CheckSquare className="h-5 w-5 text-blue-500" />
+              ) : (
+                <Square className="h-5 w-5 text-muted-foreground hover:text-foreground" />
+              )}
+            </button>
+          )}
+          <CardTitle className="text-sm font-medium line-clamp-2 flex-1">
             {order.productName}
           </CardTitle>
           <StatusBadge status={order.artStatus} />
@@ -203,6 +229,29 @@ function UploadBox({
 
   const fileUrl = type === "png" ? order.artPngUrl : order.artCdrUrl;
 
+  const handleDownload = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    if (!fileUrl) return;
+
+    try {
+      const response = await fetch(fileUrl);
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      // Extrai o nome do arquivo da URL e decodifica
+      const encodedName = fileUrl.split("/").pop() || `arte.${type}`;
+      const fileName = decodeURIComponent(encodedName);
+      a.download = fileName;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error("Erro ao baixar:", err);
+    }
+  };
+
   const handleFileUpload = async (file: File) => {
     setIsUploading(true);
     try {
@@ -252,16 +301,19 @@ function UploadBox({
               className="w-full h-full object-contain rounded-lg bg-muted border-2 border-green-500/50"
             />
           ) : (
-            <div className="w-full h-full rounded-lg bg-muted border-2 border-orange-500/50 flex items-center justify-center">
-              <FileIcon className="h-10 w-10 text-orange-500" />
+            <div className="w-full h-full rounded-lg bg-white border-2 border-[#00a651] flex items-center justify-center">
+              <img src="/corel-logo.png" alt="CorelDRAW" className="w-24 h-24 object-contain" />
             </div>
           )}
           <div className="absolute inset-0 bg-black/70 opacity-0 group-hover:opacity-100 transition-opacity rounded-lg flex items-center justify-center gap-2">
-            <a href={fileUrl} target="_blank" rel="noopener noreferrer" download>
-              <Button size="sm" variant="ghost" className="h-8 w-8 p-0 text-white hover:text-white hover:bg-white/20">
-                <Download className="h-4 w-4" />
-              </Button>
-            </a>
+            <Button
+              size="sm"
+              variant="ghost"
+              className="h-8 w-8 p-0 text-white hover:text-white hover:bg-white/20"
+              onClick={handleDownload}
+            >
+              <Download className="h-4 w-4" />
+            </Button>
             <Button
               size="sm"
               variant="ghost"
@@ -303,7 +355,7 @@ function UploadBox({
   );
 }
 
-export function OrderGroup({ orders, onUpdateOrder, onOpenDetails }: OrderGroupProps) {
+export function OrderGroup({ orders, onUpdateOrder, onOpenDetails, selectable, selectedIds, onToggleSelect }: OrderGroupProps) {
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
 
   // Pedido atual (para upload) - o que está em hover ou o primeiro
@@ -311,7 +363,7 @@ export function OrderGroup({ orders, onUpdateOrder, onOpenDetails }: OrderGroupP
   const isSingleOrder = orders.length === 1;
 
   // Tamanho dos boxes de upload (quadrados)
-  const uploadBoxSize = 220;
+  const uploadBoxSize = 280;
 
   return (
     <div className="flex gap-4 items-start">
@@ -340,7 +392,13 @@ export function OrderGroup({ orders, onUpdateOrder, onOpenDetails }: OrderGroupP
               onMouseEnter={() => !isSingleOrder && setHoveredIndex(index)}
               onMouseLeave={() => !isSingleOrder && setHoveredIndex(null)}
             >
-              <FullCard order={order} onOpenDetails={onOpenDetails} />
+              <FullCard
+                order={order}
+                onOpenDetails={onOpenDetails}
+                selectable={selectable}
+                selected={selectedIds?.has(order.id)}
+                onToggleSelect={onToggleSelect}
+              />
             </div>
           );
         })}

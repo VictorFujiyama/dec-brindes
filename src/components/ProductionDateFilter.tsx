@@ -17,7 +17,7 @@ export function ProductionDateFilter({
   onDateChange,
 }: ProductionDateFilterProps) {
   const availableDates = useMemo(() => {
-    const datesMap = new Map<string, { date: Date; count: number }>();
+    const datesMap = new Map<string, { date: Date; customers: Set<string> }>();
 
     for (const order of orders) {
       if (order.sentToProductionAt) {
@@ -26,9 +26,9 @@ export function ProductionDateFilter({
         const dateKey = format(dateObj, "yyyy-MM-dd");
 
         if (datesMap.has(dateKey)) {
-          datesMap.get(dateKey)!.count++;
+          datesMap.get(dateKey)!.customers.add(order.customerUser);
         } else {
-          datesMap.set(dateKey, { date: dateObj, count: 1 });
+          datesMap.set(dateKey, { date: dateObj, customers: new Set([order.customerUser]) });
         }
       }
     }
@@ -39,8 +39,14 @@ export function ProductionDateFilter({
       .map(([key, value]) => ({
         key,
         label: format(value.date, "dd/MM/yyyy (EEEE)", { locale: ptBR }),
-        count: value.count,
+        count: value.customers.size,
       }));
+  }, [orders]);
+
+  // Conta total de clientes únicos
+  const totalCustomers = useMemo(() => {
+    const uniqueCustomers = new Set(orders.map(o => o.customerUser));
+    return uniqueCustomers.size;
   }, [orders]);
 
   if (availableDates.length === 0) {
@@ -57,7 +63,7 @@ export function ProductionDateFilter({
             : "bg-muted text-muted-foreground hover:bg-muted/80"
         }`}
       >
-        Todos ({orders.length})
+        Todos ({totalCustomers})
       </button>
       {availableDates.map((date) => (
         <button

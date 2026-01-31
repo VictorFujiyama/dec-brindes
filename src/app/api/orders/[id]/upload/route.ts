@@ -2,6 +2,16 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { supabase, STORAGE_BUCKET, getPublicUrl } from "@/lib/supabase";
 
+// Remove acentos e caracteres especiais do nome do arquivo
+function sanitizeFileName(fileName: string): string {
+  return fileName
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "") // Remove acentos
+    .replace(/[^a-zA-Z0-9.\-_ ]/g, "") // Remove outros caracteres especiais
+    .replace(/\s+/g, " ") // Normaliza espaços
+    .trim();
+}
+
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -26,10 +36,20 @@ export async function POST(
       return NextResponse.json({ error: "Order not found" }, { status: 404 });
     }
 
-    // Create unique filename
+    // Create filename - usa artName se existir, senão usa nome original do arquivo
     const extension = fileType === "png" ? "png" : "cdr";
-    const fileName = `${order.shopeeOrderId}_${fileType}.${extension}`;
-    const filePath = `${order.shopeeOrderId}/${fileName}`;
+    let fileName: string;
+
+    if (order.artName) {
+      // Usa o padrão "ArtName - shopee.ext" (sanitizado)
+      fileName = sanitizeFileName(`${order.artName} - shopee.${extension}`);
+    } else {
+      // Usa o nome original do arquivo (sanitizado)
+      const originalName = file.name.replace(/\.[^/.]+$/, ""); // Remove extensão
+      fileName = sanitizeFileName(`${originalName}.${extension}`);
+    }
+
+    const filePath = `${id}/${fileName}`;
 
     // Convert file to buffer
     const arrayBuffer = await file.arrayBuffer();
@@ -91,12 +111,17 @@ export async function DELETE(
       return NextResponse.json({ error: "Order not found" }, { status: 404 });
     }
 
-    // Delete from Supabase Storage
-    const extension = fileType === "png" ? "png" : "cdr";
-    const fileName = `${order.shopeeOrderId}_${fileType}.${extension}`;
-    const filePath = `${order.shopeeOrderId}/${fileName}`;
+    // Get the current file URL and extract the path
+    const currentUrl = fileType === "png" ? order.artPngUrl : order.artCdrUrl;
 
-    await supabase.storage.from(STORAGE_BUCKET).remove([filePath]);
+    if (currentUrl) {
+      // Extract path from URL: .../storage/v1/object/public/bucket/path
+      const urlParts = currentUrl.split(`${STORAGE_BUCKET}/`);
+      if (urlParts[1]) {
+        const filePath = decodeURIComponent(urlParts[1]);
+        await supabase.storage.from(STORAGE_BUCKET).remove([filePath]);
+      }
+    }
 
     // Update order to remove URL
     const updateData =
