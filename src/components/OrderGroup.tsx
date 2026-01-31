@@ -17,6 +17,8 @@ import {
   CheckSquare,
   Square,
   AlertTriangle,
+  CalendarPlus,
+  CalendarCheck,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -155,6 +157,23 @@ function FullCard({
     }
   };
 
+  const toggleDailyQueue = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    try {
+      const response = await fetch(`/api/orders/${order.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ inDailyQueue: !order.inDailyQueue }),
+      });
+      if (response.ok) {
+        const updated = await response.json();
+        onUpdateOrder(updated);
+      }
+    } catch (err) {
+      console.error("Erro ao atualizar fila do dia:", err);
+    }
+  };
+
   // Se urgente, usa vermelho independente do status
   const statusBorderClass = order.isUrgent
     ? "border-l-4 border-l-red-500 bg-red-500/10"
@@ -192,17 +211,34 @@ function FullCard({
             {order.productName}
           </CardTitle>
           {(order.artStatus === "PENDING" || order.artStatus === "APPROVED" || order.artStatus === "PRODUCTION") && (
-            <button
-              onClick={toggleUrgent}
-              className={`p-1 rounded transition-colors ${
-                order.isUrgent
-                  ? "text-red-500 bg-red-500/20 hover:bg-red-500/30"
-                  : "text-muted-foreground hover:text-red-500 hover:bg-red-500/10"
-              }`}
-              title={order.isUrgent ? "Remover urgência" : "Marcar como urgente"}
-            >
-              <AlertTriangle className="h-4 w-4" />
-            </button>
+            <>
+              <button
+                onClick={toggleDailyQueue}
+                className={`p-1 rounded transition-colors ${
+                  order.inDailyQueue
+                    ? "text-orange-500 bg-orange-500/20 hover:bg-orange-500/30"
+                    : "text-muted-foreground hover:text-orange-500 hover:bg-orange-500/10"
+                }`}
+                title={order.inDailyQueue ? "Remover do dia" : "Adicionar ao dia"}
+              >
+                {order.inDailyQueue ? (
+                  <CalendarCheck className="h-4 w-4" />
+                ) : (
+                  <CalendarPlus className="h-4 w-4" />
+                )}
+              </button>
+              <button
+                onClick={toggleUrgent}
+                className={`p-1 rounded transition-colors ${
+                  order.isUrgent
+                    ? "text-red-500 bg-red-500/20 hover:bg-red-500/30"
+                    : "text-muted-foreground hover:text-red-500 hover:bg-red-500/10"
+                }`}
+                title={order.isUrgent ? "Remover urgência" : "Marcar como urgente"}
+              >
+                <AlertTriangle className="h-4 w-4" />
+              </button>
+            </>
           )}
           <StatusBadge status={order.artStatus} />
         </div>

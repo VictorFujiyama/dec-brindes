@@ -42,6 +42,34 @@ export default function Dashboard() {
     }));
   }, []);
 
+  const generateDailyQueue = useCallback(async (count: number) => {
+    try {
+      const response = await fetch("/api/orders/daily-queue", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ count }),
+      });
+      if (response.ok) {
+        await fetchOrders(search || undefined);
+      }
+    } catch (error) {
+      console.error("Error generating daily queue:", error);
+    }
+  }, [fetchOrders, search]);
+
+  const clearDailyQueue = useCallback(async () => {
+    try {
+      const response = await fetch("/api/orders/daily-queue", {
+        method: "DELETE",
+      });
+      if (response.ok) {
+        await fetchOrders(search || undefined);
+      }
+    } catch (error) {
+      console.error("Error clearing daily queue:", error);
+    }
+  }, [fetchOrders, search]);
+
   // Carrega inicial
   useEffect(() => {
     fetchOrders();
@@ -58,6 +86,7 @@ export default function Dashboard() {
   // Filtra localmente por status (instantâneo)
   const filteredOrders = useMemo(() => {
     if (status === "ALL") return allOrders;
+    if (status === "DAILY_QUEUE") return allOrders.filter(o => o.inDailyQueue);
     return allOrders.filter(o => o.artStatus === status);
   }, [allOrders, status]);
 
@@ -68,6 +97,7 @@ export default function Dashboard() {
     approved: allOrders.filter((o) => o.artStatus === "APPROVED").length,
     production: allOrders.filter((o) => o.artStatus === "PRODUCTION").length,
     shipped: allOrders.filter((o) => o.artStatus === "SHIPPED").length,
+    dailyQueue: allOrders.filter((o) => o.inDailyQueue).length,
   }), [allOrders]);
 
   return (
@@ -161,6 +191,9 @@ export default function Dashboard() {
               onSearchChange={setSearch}
               status={status}
               onStatusChange={setStatus}
+              dailyQueueCount={stats.dailyQueue}
+              onGenerateDailyQueue={generateDailyQueue}
+              onClearDailyQueue={clearDailyQueue}
             />
 
             {isLoading ? (

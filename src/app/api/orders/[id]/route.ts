@@ -8,7 +8,7 @@ export async function PATCH(
   try {
     const { id } = await params;
     const body = await request.json();
-    const { artStatus, artName, internalNote, isUrgent } = body;
+    const { artStatus, artName, internalNote, isUrgent, inDailyQueue } = body;
 
     const updateData: Record<string, unknown> = {};
 
@@ -30,6 +30,10 @@ export async function PATCH(
 
     if (isUrgent !== undefined) {
       updateData.isUrgent = isUrgent;
+    }
+
+    if (inDailyQueue !== undefined) {
+      updateData.inDailyQueue = inDailyQueue;
     }
 
     const order = await prisma.order.update({
