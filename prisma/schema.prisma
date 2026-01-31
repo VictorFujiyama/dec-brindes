@@ -27,6 +27,7 @@ model Order {
   sentToProductionAt DateTime? // Data de envio para producao (para agrupar lotes)
   artPngUrl          String?   // URL do arquivo PNG da arte
   artCdrUrl          String?   // URL do arquivo CDR da arte
+  shippedAt          DateTime? // Data que foi marcado como enviado
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -41,4 +42,5 @@ enum ArtStatus {
   PENDING
   APPROVED
   PRODUCTION
+  SHIPPED
 }

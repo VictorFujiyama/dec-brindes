@@ -8,6 +8,14 @@ interface StatusBadgeProps {
 }
 
 export function StatusBadge({ status }: StatusBadgeProps) {
+  if (status === "SHIPPED") {
+    return (
+      <Badge className="bg-purple-500 hover:bg-purple-600 text-white">
+        Enviado
+      </Badge>
+    );
+  }
+
   if (status === "PRODUCTION") {
     return (
       <Badge className="bg-blue-500 hover:bg-blue-600 text-white">

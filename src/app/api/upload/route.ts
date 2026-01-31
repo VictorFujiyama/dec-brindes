@@ -38,7 +38,7 @@ export async function POST(request: NextRequest) {
         let updated = 0;
         let processed = 0;
 
-        const batchSize = 50;
+        const batchSize = 20;
         for (let i = 0; i < orders.length; i += batchSize) {
           const batch = orders.slice(i, i + batchSize);
 
@@ -78,11 +78,31 @@ export async function POST(request: NextRequest) {
           });
         }
 
+        // Detecta pedidos enviados (estavam em PRODUCTION mas não estão no XLS)
+        send({ status: "checking_shipped", message: "Verificando pedidos enviados..." });
+
+        const importedOrderIds = orders.map(o => o.shopeeOrderId);
+
+        // Busca pedidos em PRODUCTION que NÃO estão no XLS importado
+        const shippedOrders = await prisma.order.updateMany({
+          where: {
+            artStatus: "PRODUCTION",
+            shopeeOrderId: { notIn: importedOrderIds }
+          },
+          data: {
+            artStatus: "SHIPPED",
+            shippedAt: new Date()
+          }
+        });
+
+        const shipped = shippedOrders.count;
+
         send({
           status: "done",
-          message: `Importado! ${created} novos, ${updated} atualizados`,
+          message: `Importado! ${created} novos, ${updated} atualizados${shipped > 0 ? `, ${shipped} enviados` : ""}`,
           created,
           updated,
+          shipped,
           total: orders.length
         });
 

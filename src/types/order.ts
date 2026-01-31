@@ -1,4 +1,4 @@
-export type ArtStatus = "PENDING" | "APPROVED" | "PRODUCTION";
+export type ArtStatus = "PENDING" | "APPROVED" | "PRODUCTION" | "SHIPPED";
 
 export interface Order {
   id: string;
@@ -18,6 +18,7 @@ export interface Order {
   sentToProductionAt: Date | null;
   artPngUrl: string | null;
   artCdrUrl: string | null;
+  shippedAt: Date | null;
   createdAt: Date;
   updatedAt: Date;
 }

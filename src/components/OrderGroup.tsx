@@ -56,7 +56,9 @@ function MiniCard({
   };
 
   const statusBorderClass =
-    order.artStatus === "PRODUCTION"
+    order.artStatus === "SHIPPED"
+      ? "border-l-4 border-l-purple-500 bg-purple-500/10"
+      : order.artStatus === "PRODUCTION"
       ? "border-l-4 border-l-blue-500 bg-blue-500/10"
       : order.artStatus === "APPROVED"
       ? "border-l-4 border-l-green-500 bg-green-500/10"
@@ -134,7 +136,9 @@ function FullCard({
   };
 
   const statusBorderClass =
-    order.artStatus === "PRODUCTION"
+    order.artStatus === "SHIPPED"
+      ? "border-l-4 border-l-purple-500 bg-purple-500/10"
+      : order.artStatus === "PRODUCTION"
       ? "border-l-4 border-l-blue-500 bg-blue-500/10"
       : order.artStatus === "APPROVED"
       ? "border-l-4 border-l-green-500 bg-green-500/10"

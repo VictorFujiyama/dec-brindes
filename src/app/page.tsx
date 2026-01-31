@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useMemo } from "react";
-import { Package, CheckCircle, Clock, RefreshCw, Factory } from "lucide-react";
+import { Package, CheckCircle, Clock, RefreshCw, Factory, Truck } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { UploadXLS } from "@/components/UploadXLS";
@@ -67,6 +67,7 @@ export default function Dashboard() {
     pending: allOrders.filter((o) => o.artStatus === "PENDING").length,
     approved: allOrders.filter((o) => o.artStatus === "APPROVED").length,
     production: allOrders.filter((o) => o.artStatus === "PRODUCTION").length,
+    shipped: allOrders.filter((o) => o.artStatus === "SHIPPED").length,
   }), [allOrders]);
 
   return (
@@ -91,7 +92,7 @@ export default function Dashboard() {
       <main className="container mx-auto px-4 py-6 space-y-6">
         <UploadXLS onUploadSuccess={() => fetchOrders()} />
 
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
           <Card>
             <CardContent className="flex items-center gap-3 pt-6">
               <div className="p-2 bg-slate-500/20 rounded-full">
@@ -136,6 +137,18 @@ export default function Dashboard() {
               <div>
                 <p className="text-2xl font-bold">{stats.production}</p>
                 <p className="text-xs text-muted-foreground">Producao</p>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardContent className="flex items-center gap-3 pt-6">
+              <div className="p-2 bg-purple-500/20 rounded-full">
+                <Truck className="h-5 w-5 text-purple-400" />
+              </div>
+              <div>
+                <p className="text-2xl font-bold">{stats.shipped}</p>
+                <p className="text-xs text-muted-foreground">Enviados</p>
               </div>
             </CardContent>
           </Card>

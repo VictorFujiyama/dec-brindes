@@ -21,6 +21,7 @@ export function FilterBar({
     { value: "PENDING", label: "Pendentes" },
     { value: "APPROVED", label: "Aprovados" },
     { value: "PRODUCTION", label: "Produção" },
+    { value: "SHIPPED", label: "Enviados" },
   ];
 
   return (
