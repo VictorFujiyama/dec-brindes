@@ -6,7 +6,7 @@ export interface Order {
   customerUser: string;
   customerName: string;
   productName: string;
-  variation: string | null;
+  variation: string;
   quantity: number;
   totalValue: number;
   customerNote: string | null;
@@ -30,7 +30,7 @@ export interface OrderFromXLS {
   customerUser: string;
   customerName: string;
   productName: string;
-  variation: string | null;
+  variation: string;
   quantity: number;
   totalValue: number;
   customerNote: string | null;

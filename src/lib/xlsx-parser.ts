@@ -54,7 +54,7 @@ export function parseShopeeXLS(buffer: ArrayBuffer): OrderFromXLS[] {
       customerUser: row["Nome de usuário (comprador)"] || "",
       customerName: row["Nome do destinatário"] || "",
       productName: row["Nome do Produto"] || "",
-      variation: row["Nome da variação"] || null,
+      variation: row["Nome da variação"] || "",
       quantity: Number(row["Quantidade"]) || 1,
       totalValue: parseValue(row["Preço total do produto"]),
       customerNote: row["Observação do comprador"] || null,

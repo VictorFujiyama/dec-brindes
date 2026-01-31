@@ -45,13 +45,17 @@ export async function POST(request: NextRequest) {
           const results = await prisma.$transaction(
             batch.map((order) =>
               prisma.order.upsert({
-                where: { shopeeOrderId: order.shopeeOrderId },
+                where: {
+                  shopeeOrderId_productName_variation: {
+                    shopeeOrderId: order.shopeeOrderId,
+                    productName: order.productName,
+                    variation: order.variation,
+                  }
+                },
                 create: order,
                 update: {
                   customerUser: order.customerUser,
                   customerName: order.customerName,
-                  productName: order.productName,
-                  variation: order.variation,
                   quantity: order.quantity,
                   totalValue: order.totalValue,
                   customerNote: order.customerNote,

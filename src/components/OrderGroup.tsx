@@ -288,7 +288,7 @@ function FullCard({
   );
 }
 
-function UploadBox({
+export function UploadBox({
   order,
   type,
   onUpdateOrder,
@@ -426,6 +426,56 @@ function UploadBox({
           e.target.value = "";
         }}
       />
+    </div>
+  );
+}
+
+// Componente para renderizar apenas os cards (sem uploads)
+export function OrderCards({
+  orders,
+  onUpdateOrder,
+  onOpenDetails,
+  selectable,
+  selectedIds,
+  onToggleSelect,
+}: OrderGroupProps) {
+  const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
+  const isSingleOrder = orders.length === 1;
+
+  return (
+    <div className="relative" style={{ minHeight: 200 }}>
+      {orders.map((order, index) => {
+        const isHovered = hoveredIndex === index;
+        const zIndex = isHovered ? 50 : index + 1;
+        const offsetPercent = index * 25;
+
+        return (
+          <div
+            key={order.id}
+            className="transition-all duration-200 ease-out bg-background rounded-lg absolute top-0"
+            style={{
+              zIndex,
+              left: `${offsetPercent}%`,
+              width: '100%',
+              transform: isHovered
+                ? 'scale(1.02) translateY(-3px)'
+                : 'scale(1) translateY(0)',
+              boxShadow: isHovered ? '0 10px 30px rgba(0,0,0,0.3)' : 'none',
+            }}
+            onMouseEnter={() => !isSingleOrder && setHoveredIndex(index)}
+            onMouseLeave={() => !isSingleOrder && setHoveredIndex(null)}
+          >
+            <FullCard
+              order={order}
+              onOpenDetails={onOpenDetails}
+              onUpdateOrder={onUpdateOrder}
+              selectable={selectable}
+              selected={selectedIds?.has(order.id)}
+              onToggleSelect={onToggleSelect}
+            />
+          </div>
+        );
+      })}
     </div>
   );
 }

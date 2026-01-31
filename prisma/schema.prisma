@@ -10,11 +10,11 @@ datasource db {
 
 model Order {
   id            String    @id @default(cuid())
-  shopeeOrderId String    @unique
+  shopeeOrderId String
   customerUser  String
   customerName  String
   productName   String
-  variation     String?
+  variation     String    @default("")
   quantity      Int
   totalValue    Float
   customerNote  String?
@@ -34,6 +34,8 @@ model Order {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  @@unique([shopeeOrderId, productName, variation])
+  @@index([shopeeOrderId])
   @@index([customerUser])
   @@index([artStatus])
   @@index([shippingDate])

@@ -3,7 +3,8 @@
 import { useMemo, useState } from "react";
 import { Pencil, Check, X } from "lucide-react";
 import { Order, GroupedOrders } from "@/types/order";
-import { OrderGroup } from "./OrderGroup";
+import { UploadBox } from "./OrderGroup";
+import { CustomerOrderCards } from "./CustomerOrderCards";
 import { OrderDetailsModal } from "./OrderDetailsModal";
 import { BatchActions } from "./BatchActions";
 import { ProductionDateFilter } from "./ProductionDateFilter";
@@ -233,20 +234,35 @@ export function OrderTable({ orders, onUpdateOrder, onUpdateMultiple, selectable
         />
       )}
 
-      {groupedOrders.map((group) => (
-        <div key={group.customerUser} className="space-y-4">
-          <GroupHeader group={group} onUpdateMultiple={onUpdateMultiple} />
+      {groupedOrders.map((group) => {
+        const uploadBoxSize = 280;
 
-          <OrderGroup
-            orders={group.orders}
-            onUpdateOrder={onUpdateOrder}
-            onOpenDetails={setDetailsOrder}
-            selectable={selectable}
-            selectedIds={selectedIds}
-            onToggleSelect={toggleSelect}
-          />
-        </div>
-      ))}
+        return (
+          <div key={group.customerUser} className="space-y-4">
+            <GroupHeader group={group} onUpdateMultiple={onUpdateMultiple} />
+
+            <div className="flex gap-4 items-start">
+              {/* Cards de todos os pedidos do cliente */}
+              <div style={{ width: "40%" }}>
+                <CustomerOrderCards
+                  orders={group.orders}
+                  onUpdateOrder={onUpdateOrder}
+                  onOpenDetails={setDetailsOrder}
+                  selectable={selectable}
+                  selectedIds={selectedIds}
+                  onToggleSelect={toggleSelect}
+                />
+              </div>
+
+              {/* Upload Boxes - uma vez por cliente */}
+              <div className="flex gap-2 flex-shrink-0 ml-auto">
+                <UploadBox order={group.orders[0]} type="png" onUpdateOrder={onUpdateOrder} size={uploadBoxSize} />
+                <UploadBox order={group.orders[0]} type="cdr" onUpdateOrder={onUpdateOrder} size={uploadBoxSize} />
+              </div>
+            </div>
+          </div>
+        );
+      })}
 
       {detailsOrder && (
         <OrderDetailsModal
