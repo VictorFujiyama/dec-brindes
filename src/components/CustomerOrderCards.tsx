@@ -451,7 +451,7 @@ export function CustomerOrderCards({
   const canSplit = orders.length > 1;
 
   return (
-    <div className="relative" style={{ minHeight: 280 }}>
+    <div className="relative" style={{ minHeight: 340 }}>
       {orders.map((order, index) => {
         const isHovered = hoveredIndex === index;
         const zIndex = isHovered ? 50 : index + 1;

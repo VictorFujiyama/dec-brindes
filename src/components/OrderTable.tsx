@@ -214,7 +214,7 @@ export function OrderTable({ orders, onUpdateOrder, onUpdateMultiple, selectable
   }
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-16">
       {showProductionFilter && (
         <ProductionDateFilter
           orders={orders}
