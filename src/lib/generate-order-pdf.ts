@@ -40,6 +40,10 @@ function groupOrdersByArtGroup(orders: Order[]): OrderGroup[] {
 }
 
 function generateOrderNote(group: OrderGroup, dateInfo: { day: string; month: string; year: string }): string {
+  // Coleta IDs únicos de pedidos Shopee
+  const uniqueOrderIds = [...new Set(group.orders.map(o => o.shopeeOrderId))];
+  const orderIdsDisplay = uniqueOrderIds.join(" / ");
+
   // Gera linhas da tabela para cada pedido no grupo
   const tableRows = group.orders.map((order) => {
     // Usa cupQuantity e realDescription se disponíveis, senão usa os valores originais
@@ -85,7 +89,7 @@ function generateOrderNote(group: OrderGroup, dateInfo: { day: string; month: st
         <!-- ID -->
         <div class="row">
           <span class="label">ID:</span>
-          <span class="value-underline">${group.shopeeOrderId}</span>
+          <span class="value-underline">${orderIdsDisplay}</span>
         </div>
 
         <!-- TABELA -->
