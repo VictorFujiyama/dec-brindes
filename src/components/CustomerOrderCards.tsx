@@ -183,6 +183,7 @@ function FullCard({
             </button>
           )}
           <CardTitle className="text-sm font-medium line-clamp-2 flex-1">
+            <span className="inline-flex items-center justify-center bg-orange-500 text-white text-base font-bold px-2 py-0.5 rounded mr-2">{order.quantity}x</span>
             {order.productName}
           </CardTitle>
           {(order.artStatus === "PENDING" || order.artStatus === "APPROVED" || order.artStatus === "PRODUCTION") && (
@@ -309,15 +310,14 @@ function FullCard({
             )}
           </div>
         )}
-        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-          <Package className="h-4 w-4" />
-          <span>Qtd: {order.quantity}</span>
-          {order.variation && (
+        {order.variation && (
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <Package className="h-4 w-4" />
             <span className="text-xs bg-muted px-2 py-0.5 rounded">
               {order.variation}
             </span>
-          )}
-        </div>
+          </div>
+        )}
         {order.internalNote && (
           <div className="p-2 bg-purple-500/20 border border-purple-500/30 rounded text-xs text-purple-300">
             {order.internalNote}

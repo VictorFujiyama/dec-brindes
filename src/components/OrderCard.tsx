@@ -142,7 +142,7 @@ export function OrderCard({ order, onUpdateOrder, selectable, selected, onToggle
               </button>
             )}
             <CardTitle className="text-sm font-medium line-clamp-2 flex-1">
-              {order.productName}
+              <span className="font-bold">{order.quantity} x</span> {order.productName}
             </CardTitle>
             <StatusBadge status={order.artStatus} />
           </div>
@@ -162,15 +162,14 @@ export function OrderCard({ order, onUpdateOrder, selectable, selected, onToggle
               )}
             </button>
           </div>
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <Package className="h-4 w-4" />
-            <span>Qtd: {order.quantity}</span>
-            {order.variation && (
+          {order.variation && (
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <Package className="h-4 w-4" />
               <span className="text-xs bg-muted px-2 py-0.5 rounded">
                 {order.variation}
               </span>
-            )}
-          </div>
+            </div>
+          )}
           {order.internalNote && (
             <div className="p-2 bg-purple-500/20 border border-purple-500/30 rounded text-xs text-purple-300">
               {order.internalNote}
