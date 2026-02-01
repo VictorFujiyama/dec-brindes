@@ -14,6 +14,10 @@ import {
   AlertTriangle,
   CalendarPlus,
   CalendarCheck,
+  Scissors,
+  Merge,
+  Pencil,
+  X,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { StatusBadge, DaysUntilBadge } from "./StatusBadge";
@@ -35,6 +39,7 @@ function FullCard({
   selectable,
   selected,
   onToggleSelect,
+  canSplit,
 }: {
   order: Order;
   onOpenDetails: (order: Order) => void;
@@ -42,8 +47,11 @@ function FullCard({
   selectable?: boolean;
   selected?: boolean;
   onToggleSelect?: (id: string) => void;
+  canSplit?: boolean;
 }) {
   const [copied, setCopied] = useState(false);
+  const [isEditingName, setIsEditingName] = useState(false);
+  const [editName, setEditName] = useState(order.artName || "");
 
   const copyOrderId = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -85,6 +93,62 @@ function FullCard({
       console.error("Erro ao atualizar fila do dia:", err);
     }
   };
+
+  const handleSplit = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    try {
+      // Usa timestamp modular para caber em INT32 (máx ~2 bilhões)
+      const newArtGroupId = Math.floor(Date.now() / 1000) % 1000000000;
+      const response = await fetch(`/api/orders/${order.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ artGroupId: newArtGroupId }),
+      });
+      if (response.ok) {
+        const updated = await response.json();
+        onUpdateOrder(updated);
+      }
+    } catch (err) {
+      console.error("Erro ao separar pedido:", err);
+    }
+  };
+
+  const handleJoin = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    try {
+      // Volta para o grupo padrão (0)
+      const response = await fetch(`/api/orders/${order.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ artGroupId: 0 }),
+      });
+      if (response.ok) {
+        const updated = await response.json();
+        onUpdateOrder(updated);
+      }
+    } catch (err) {
+      console.error("Erro ao juntar pedido:", err);
+    }
+  };
+
+  const saveIndividualName = async () => {
+    try {
+      const response = await fetch(`/api/orders/${order.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ artName: editName || null }),
+      });
+      if (response.ok) {
+        const updated = await response.json();
+        onUpdateOrder(updated);
+      }
+    } catch (err) {
+      console.error("Erro ao salvar nome:", err);
+    }
+    setIsEditingName(false);
+  };
+
+  const isInSeparateGroup = order.artGroupId > 0;
 
   const statusBorderClass = order.isUrgent
     ? "border-l-4 border-l-red-500 bg-red-500/10"
@@ -149,6 +213,24 @@ function FullCard({
               >
                 <AlertTriangle className="h-4 w-4" />
               </button>
+              {/* Botão Separar/Juntar */}
+              {isInSeparateGroup ? (
+                <button
+                  onClick={handleJoin}
+                  className="p-1 rounded transition-colors text-cyan-500 bg-cyan-500/20 hover:bg-cyan-500/30"
+                  title="Juntar ao grupo principal"
+                >
+                  <Merge className="h-4 w-4" />
+                </button>
+              ) : canSplit ? (
+                <button
+                  onClick={handleSplit}
+                  className="p-1 rounded transition-colors text-muted-foreground hover:text-cyan-500 hover:bg-cyan-500/10"
+                  title="Separar pedido"
+                >
+                  <Scissors className="h-4 w-4" />
+                </button>
+              ) : null}
             </>
           )}
           <StatusBadge status={order.artStatus} />
@@ -168,6 +250,65 @@ function FullCard({
             )}
           </button>
         </div>
+        {/* Nome individual para pedidos separados */}
+        {isInSeparateGroup && (
+          <div className="flex items-center gap-2 p-2 bg-cyan-500/10 border border-cyan-500/30 rounded">
+            {isEditingName ? (
+              <>
+                <input
+                  type="text"
+                  value={editName}
+                  onChange={(e) => setEditName(e.target.value)}
+                  placeholder="Nome da arte (opcional)"
+                  className="flex-1 bg-transparent text-sm focus:outline-none"
+                  autoFocus
+                  onClick={(e) => e.stopPropagation()}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") saveIndividualName();
+                    if (e.key === "Escape") {
+                      setEditName(order.artName || "");
+                      setIsEditingName(false);
+                    }
+                  }}
+                />
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    saveIndividualName();
+                  }}
+                  className="p-1 hover:bg-green-500/20 rounded text-green-500"
+                >
+                  <Check className="h-3 w-3" />
+                </button>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setEditName(order.artName || "");
+                    setIsEditingName(false);
+                  }}
+                  className="p-1 hover:bg-red-500/20 rounded text-red-500"
+                >
+                  <X className="h-3 w-3" />
+                </button>
+              </>
+            ) : (
+              <>
+                <span className="text-xs text-cyan-400 flex-1">
+                  {order.artName || "Sem nome individual"}
+                </span>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setIsEditingName(true);
+                  }}
+                  className="p-1 hover:bg-muted rounded text-muted-foreground hover:text-foreground"
+                >
+                  <Pencil className="h-3 w-3" />
+                </button>
+              </>
+            )}
+          </div>
+        )}
         <div className="flex items-center gap-2 text-sm text-muted-foreground">
           <Package className="h-4 w-4" />
           <span>Qtd: {order.quantity}</span>
@@ -209,6 +350,8 @@ export function CustomerOrderCards({
 }: CustomerOrderCardsProps) {
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
   const isSingleOrder = orders.length === 1;
+  // Pode separar se tem mais de um pedido no grupo
+  const canSplit = orders.length > 1;
 
   return (
     <div className="relative" style={{ minHeight: 280 }}>
@@ -240,6 +383,7 @@ export function CustomerOrderCards({
               selectable={selectable}
               selected={selectedIds?.has(order.id)}
               onToggleSelect={onToggleSelect}
+              canSplit={canSplit}
             />
           </div>
         );

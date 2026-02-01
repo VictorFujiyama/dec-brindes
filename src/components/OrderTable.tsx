@@ -237,28 +237,44 @@ export function OrderTable({ orders, onUpdateOrder, onUpdateMultiple, selectable
       {groupedOrders.map((group) => {
         const uploadBoxSize = 280;
 
+        // Agrupa por artGroupId dentro do cliente
+        const artGroups: Record<number, Order[]> = {};
+        for (const order of group.orders) {
+          const groupId = order.artGroupId ?? 0;
+          if (!artGroups[groupId]) {
+            artGroups[groupId] = [];
+          }
+          artGroups[groupId].push(order);
+        }
+        const artGroupList = Object.entries(artGroups).sort(([a], [b]) => Number(a) - Number(b));
+
         return (
           <div key={group.customerUser} className="space-y-4">
             <GroupHeader group={group} onUpdateMultiple={onUpdateMultiple} />
 
-            <div className="flex gap-4 items-start">
-              {/* Cards de todos os pedidos do cliente */}
-              <div style={{ width: "40%" }}>
-                <CustomerOrderCards
-                  orders={group.orders}
-                  onUpdateOrder={onUpdateOrder}
-                  onOpenDetails={setDetailsOrder}
-                  selectable={selectable}
-                  selectedIds={selectedIds}
-                  onToggleSelect={toggleSelect}
-                />
-              </div>
+            {/* Cada artGroup em uma linha separada */}
+            <div className="space-y-4">
+              {artGroupList.map(([artGroupId, artGroupOrders]) => (
+                <div key={artGroupId} className="flex gap-4 items-start">
+                  {/* Cards do grupo de arte */}
+                  <div style={{ width: "40%" }}>
+                    <CustomerOrderCards
+                      orders={artGroupOrders}
+                      onUpdateOrder={onUpdateOrder}
+                      onOpenDetails={setDetailsOrder}
+                      selectable={selectable}
+                      selectedIds={selectedIds}
+                      onToggleSelect={toggleSelect}
+                    />
+                  </div>
 
-              {/* Upload Boxes - uma vez por cliente */}
-              <div className="flex gap-2 flex-shrink-0 ml-auto">
-                <UploadBox order={group.orders[0]} type="png" onUpdateOrder={onUpdateOrder} size={uploadBoxSize} />
-                <UploadBox order={group.orders[0]} type="cdr" onUpdateOrder={onUpdateOrder} size={uploadBoxSize} />
-              </div>
+                  {/* Upload Boxes - uma vez por grupo de arte */}
+                  <div className="flex gap-2 flex-shrink-0 ml-auto">
+                    <UploadBox order={artGroupOrders[0]} type="png" onUpdateOrder={onUpdateOrder} size={uploadBoxSize} />
+                    <UploadBox order={artGroupOrders[0]} type="cdr" onUpdateOrder={onUpdateOrder} size={uploadBoxSize} />
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
         );

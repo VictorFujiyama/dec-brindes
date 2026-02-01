@@ -1,5 +1,12 @@
 import { Order } from "@/types/order";
 
+interface OrderGroup {
+  orders: Order[];
+  artName: string;
+  customerUser: string;
+  shopeeOrderId: string;
+}
+
 function formatDate(date: Date): { day: string; month: string; year: string } {
   const day = date.getDate().toString().padStart(2, "0");
   const month = (date.getMonth() + 1).toString().padStart(2, "0");
@@ -7,9 +14,49 @@ function formatDate(date: Date): { day: string; month: string; year: string } {
   return { day, month, year };
 }
 
-function generateOrderNote(order: Order, dateInfo: { day: string; month: string; year: string }): string {
-  const description = order.internalNote ||
-    `${order.productName}${order.variation ? ` - ${order.variation}` : ""}`;
+function groupOrdersByArtGroup(orders: Order[]): OrderGroup[] {
+  // Agrupa por customerUser + artGroupId
+  const groups: Record<string, Order[]> = {};
+
+  for (const order of orders) {
+    const key = `${order.customerUser}_${order.artGroupId}`;
+    if (!groups[key]) {
+      groups[key] = [];
+    }
+    groups[key].push(order);
+  }
+
+  // Converte para array de OrderGroup
+  return Object.values(groups).map((groupOrders) => {
+    const firstOrder = groupOrders[0];
+    return {
+      orders: groupOrders,
+      // Usa artName individual se tiver, senão usa do primeiro do grupo
+      artName: firstOrder.artName || "",
+      customerUser: firstOrder.customerUser,
+      shopeeOrderId: firstOrder.shopeeOrderId,
+    };
+  });
+}
+
+function generateOrderNote(group: OrderGroup, dateInfo: { day: string; month: string; year: string }): string {
+  // Gera linhas da tabela para cada pedido no grupo
+  const tableRows = group.orders.map((order) => {
+    const description = `${order.productName}${order.variation ? ` - ${order.variation}` : ""}`;
+    return `
+      <div class="table-row">
+        <div class="td-quant">${order.quantity}</div>
+        <div class="td-desc">${description.replace(/\n/g, '<br/>')}</div>
+      </div>
+    `;
+  }).join("");
+
+  // Obs: junta todas as notas internas dos pedidos do grupo
+  const obsNotes = group.orders
+    .filter(o => o.internalNote)
+    .map(o => o.internalNote)
+    .join(" | ");
+  const obsNote = obsNotes || "";
 
   return `
     <div class="note">
@@ -30,13 +77,13 @@ function generateOrderNote(order: Order, dateInfo: { day: string; month: string;
         <!-- Cliente -->
         <div class="row">
           <span class="label">Cliente:</span>
-          <span class="value-underline">${order.artName || ""}</span>
+          <span class="value-underline">${group.artName}</span>
         </div>
 
         <!-- ID -->
         <div class="row">
           <span class="label">ID:</span>
-          <span class="value-underline">${order.shopeeOrderId}</span>
+          <span class="value-underline">${group.shopeeOrderId}</span>
         </div>
 
         <!-- TABELA -->
@@ -66,10 +113,7 @@ function generateOrderNote(order: Order, dateInfo: { day: string; month: string;
             <div class="table-line-vertical"></div>
             <!-- Conteudo -->
             <div class="table-content">
-              <div class="table-row">
-                <div class="td-quant">${order.quantity}</div>
-                <div class="td-desc">${description.replace(/\n/g, '<br/>')}</div>
-              </div>
+              ${tableRows}
             </div>
           </div>
         </div>
@@ -92,14 +136,14 @@ function generateOrderNote(order: Order, dateInfo: { day: string; month: string;
           </div>
           <div class="obs-content">
             <span class="label">Obs.:</span>
-            <span class="obs-value">${order.internalNote || ""}</span>
+            <span class="obs-value">${obsNote}</span>
           </div>
         </div>
 
         <!-- Assinaturas -->
         <div class="signatures">
           <div class="sig-left">
-            <span class="cliente-name">@${order.customerUser}</span>
+            <span class="cliente-name">@${group.customerUser}</span>
             <div class="sig-line"></div>
             <span>Cliente</span>
           </div>
@@ -120,9 +164,13 @@ export function generateOrdersPDF(orders: Order[]): void {
 
   const dateInfo = formatDate(new Date());
 
-  const pages: Order[][] = [];
-  for (let i = 0; i < orders.length; i += 2) {
-    pages.push(orders.slice(i, i + 2));
+  // Agrupa pedidos por artGroupId
+  const orderGroups = groupOrdersByArtGroup(orders);
+
+  // Pagina com 2 notas por página
+  const pages: OrderGroup[][] = [];
+  for (let i = 0; i < orderGroups.length; i += 2) {
+    pages.push(orderGroups.slice(i, i + 2));
   }
 
   const html = `
@@ -313,11 +361,13 @@ export function generateOrdersPDF(orders: Order[]): void {
           position: relative;
           z-index: 1;
           display: flex;
+          flex-direction: column;
         }
 
         .table-row {
           display: flex;
           width: 100%;
+          height: 28mm; /* 4 linhas: conteúdo + espaço */
         }
 
         .td-quant {
@@ -442,9 +492,9 @@ export function generateOrdersPDF(orders: Order[]): void {
       </style>
     </head>
     <body>
-      ${pages.map((pageOrders) => `
+      ${pages.map((pageGroups) => `
         <div class="page">
-          ${pageOrders.map(order => generateOrderNote(order, dateInfo)).join("")}
+          ${pageGroups.map(group => generateOrderNote(group, dateInfo)).join("")}
         </div>
       `).join("")}
 

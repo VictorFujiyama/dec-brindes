@@ -14,6 +14,7 @@ export interface Order {
   orderDate: Date;
   artStatus: ArtStatus;
   artName: string | null;
+  artGroupId: number;
   internalNote: string | null;
   sentToProductionAt: Date | null;
   artPngUrl: string | null;
