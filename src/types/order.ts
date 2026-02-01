@@ -15,6 +15,8 @@ export interface Order {
   artStatus: ArtStatus;
   artName: string | null;
   artGroupId: number;
+  cupQuantity: number | null;
+  realDescription: string | null;
   internalNote: string | null;
   sentToProductionAt: Date | null;
   artPngUrl: string | null;

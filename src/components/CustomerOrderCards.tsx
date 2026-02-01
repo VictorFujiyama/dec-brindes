@@ -52,6 +52,9 @@ function FullCard({
   const [copied, setCopied] = useState(false);
   const [isEditingName, setIsEditingName] = useState(false);
   const [editName, setEditName] = useState(order.artName || "");
+  const [isEditingCupInfo, setIsEditingCupInfo] = useState(false);
+  const [editCupQuantity, setEditCupQuantity] = useState(order.cupQuantity?.toString() || "");
+  const [editRealDescription, setEditRealDescription] = useState(order.realDescription || "");
 
   const copyOrderId = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -148,6 +151,26 @@ function FullCard({
     setIsEditingName(false);
   };
 
+  const saveCupInfo = async () => {
+    try {
+      const response = await fetch(`/api/orders/${order.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          cupQuantity: editCupQuantity ? parseInt(editCupQuantity) : null,
+          realDescription: editRealDescription || null,
+        }),
+      });
+      if (response.ok) {
+        const updated = await response.json();
+        onUpdateOrder(updated);
+      }
+    } catch (err) {
+      console.error("Erro ao salvar info de copos:", err);
+    }
+    setIsEditingCupInfo(false);
+  };
+
   const isInSeparateGroup = order.artGroupId > 0;
 
   const statusBorderClass = order.isUrgent
@@ -238,6 +261,80 @@ function FullCard({
         </div>
       </CardHeader>
       <CardContent className="space-y-2">
+        {/* Quantidade de copos e descrição real */}
+        <div className="flex items-center gap-2 p-2 bg-green-500/10 border border-green-500/30 rounded">
+          {isEditingCupInfo ? (
+            <div className="flex-1 space-y-2" onClick={(e) => e.stopPropagation()}>
+              <div className="flex items-center gap-2">
+                <input
+                  type="number"
+                  value={editCupQuantity}
+                  onChange={(e) => setEditCupQuantity(e.target.value)}
+                  placeholder="Qtd copos"
+                  className="w-24 bg-transparent text-sm font-bold focus:outline-none border-b border-green-500"
+                  autoFocus
+                />
+                <span className="text-xs text-green-400">copos</span>
+              </div>
+              <input
+                type="text"
+                value={editRealDescription}
+                onChange={(e) => setEditRealDescription(e.target.value)}
+                placeholder="Descrição real do produto"
+                className="w-full bg-transparent text-sm focus:outline-none border-b border-green-500"
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") saveCupInfo();
+                  if (e.key === "Escape") {
+                    setEditCupQuantity(order.cupQuantity?.toString() || "");
+                    setEditRealDescription(order.realDescription || "");
+                    setIsEditingCupInfo(false);
+                  }
+                }}
+              />
+              <div className="flex gap-1">
+                <button
+                  onClick={saveCupInfo}
+                  className="p-1 hover:bg-green-500/20 rounded text-green-500"
+                >
+                  <Check className="h-3 w-3" />
+                </button>
+                <button
+                  onClick={() => {
+                    setEditCupQuantity(order.cupQuantity?.toString() || "");
+                    setEditRealDescription(order.realDescription || "");
+                    setIsEditingCupInfo(false);
+                  }}
+                  className="p-1 hover:bg-red-500/20 rounded text-red-500"
+                >
+                  <X className="h-3 w-3" />
+                </button>
+              </div>
+            </div>
+          ) : (
+            <>
+              <div className="flex-1">
+                <div className="flex items-center gap-2">
+                  <span className="text-base font-bold text-green-400">
+                    {order.cupQuantity || "?"} copos
+                  </span>
+                </div>
+                <span className="text-xs text-green-300">
+                  {order.realDescription || "Sem descrição real"}
+                </span>
+              </div>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setIsEditingCupInfo(true);
+                }}
+                className="p-1 hover:bg-muted rounded text-muted-foreground hover:text-foreground"
+              >
+                <Pencil className="h-3 w-3" />
+              </button>
+            </>
+          )}
+        </div>
+
         <div className="flex items-center gap-2 p-2 bg-muted/50 rounded">
           <span className="font-mono font-bold text-sm">{order.shopeeOrderId}</span>
           <button

@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { parseShopeeXLS } from "@/lib/xlsx-parser";
+import { calculateTotalCups, getRealDescription } from "@/lib/product-mapping";
 
 export async function POST(request: NextRequest) {
   const encoder = new TextEncoder();
@@ -43,8 +44,12 @@ export async function POST(request: NextRequest) {
           const batch = orders.slice(i, i + batchSize);
 
           const results = await prisma.$transaction(
-            batch.map((order) =>
-              prisma.order.upsert({
+            batch.map((order) => {
+              // Calcula valores padrão do mapeamento
+              const defaultCupQty = calculateTotalCups(order.productName, order.quantity);
+              const defaultRealDesc = getRealDescription(order.productName);
+
+              return prisma.order.upsert({
                 where: {
                   shopeeOrderId_productName_variation: {
                     shopeeOrderId: order.shopeeOrderId,
@@ -52,7 +57,11 @@ export async function POST(request: NextRequest) {
                     variation: order.variation,
                   }
                 },
-                create: order,
+                create: {
+                  ...order,
+                  cupQuantity: defaultCupQty,
+                  realDescription: defaultRealDesc,
+                },
                 update: {
                   customerUser: order.customerUser,
                   customerName: order.customerName,
@@ -62,8 +71,8 @@ export async function POST(request: NextRequest) {
                   shippingDate: order.shippingDate,
                   orderDate: order.orderDate,
                 },
-              })
-            )
+              });
+            })
           );
 
           for (const result of results) {
