@@ -42,10 +42,12 @@ function groupOrdersByArtGroup(orders: Order[]): OrderGroup[] {
 function generateOrderNote(group: OrderGroup, dateInfo: { day: string; month: string; year: string }): string {
   // Gera linhas da tabela para cada pedido no grupo
   const tableRows = group.orders.map((order) => {
-    const description = `${order.productName}${order.variation ? ` - ${order.variation}` : ""}`;
+    // Usa cupQuantity e realDescription se disponíveis, senão usa os valores originais
+    const qty = order.cupQuantity ?? order.quantity;
+    const description = order.realDescription || `${order.productName}${order.variation ? ` - ${order.variation}` : ""}`;
     return `
       <div class="table-row">
-        <div class="td-quant">${order.quantity}</div>
+        <div class="td-quant">${qty}</div>
         <div class="td-desc">${description.replace(/\n/g, '<br/>')}</div>
       </div>
     `;
@@ -367,7 +369,8 @@ export function generateOrdersPDF(orders: Order[]): void {
         .table-row {
           display: flex;
           width: 100%;
-          height: 28mm; /* 4 linhas: conteúdo + espaço */
+          min-height: 7mm; /* altura mínima de 1 linha */
+          margin-bottom: 6mm; /* espaço entre pedidos */
         }
 
         .td-quant {
