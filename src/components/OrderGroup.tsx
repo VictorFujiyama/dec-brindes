@@ -314,8 +314,8 @@ export function UploadBox({
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      // Extrai o nome do arquivo da URL e decodifica
-      const encodedName = fileUrl.split("/").pop() || `arte.${type}`;
+      // Extrai o nome do arquivo da URL, remove query params e decodifica
+      const encodedName = fileUrl.split("/").pop()?.split("?")[0] || `arte.${type}`;
       const fileName = decodeURIComponent(encodedName);
       a.download = fileName;
       document.body.appendChild(a);

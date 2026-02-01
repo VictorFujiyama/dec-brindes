@@ -71,8 +71,8 @@ export async function POST(
       );
     }
 
-    // Get public URL
-    const publicUrl = getPublicUrl(filePath);
+    // Get public URL with cache-busting timestamp
+    const publicUrl = `${getPublicUrl(filePath)}?t=${Date.now()}`;
 
     // Update order with file URL
     const updateData =
