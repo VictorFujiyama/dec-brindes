@@ -111,6 +111,14 @@ export function BatchActions({
   const selectedOrders = orders.filter((o) => selectedIds.has(o.id));
   const allSelected = orders.length > 0 && selectedIds.size === orders.length;
 
+  // Grupos ordenados como o PDF (dos selecionados)
+  const sortedGroups = groupOrdersForPDF(selectedOrders);
+
+  // Verifica se todos os grupos têm nome de arte
+  const groupsWithoutArtName = sortedGroups.filter(g => !g.artName);
+  const allHaveArtName = groupsWithoutArtName.length === 0;
+  const missingArtNameCount = groupsWithoutArtName.length;
+
   // Grupos que precisam de pintura (dos selecionados)
   const paintingGroups = groupOrdersForPainting(selectedOrders);
 
@@ -131,24 +139,10 @@ export function BatchActions({
   };
 
   const handleCopyArts = async () => {
-    if (selectedOrders.length === 0) return;
+    if (selectedOrders.length === 0 || !allHaveArtName) return;
 
-    // Usa a mesma ordenação do PDF para pegar os nomes das artes na ordem correta
-    const sortedGroups = groupOrdersForPDF(selectedOrders);
-
-    // Pega os nomes das artes únicas mantendo a ordem
-    const artNames: string[] = [];
-    for (const group of sortedGroups) {
-      if (group.artName && !artNames.includes(group.artName)) {
-        artNames.push(group.artName);
-      }
-    }
-
-    if (artNames.length === 0) {
-      setCopyResult({ copied: [], notFound: ["Nenhum pedido com nome de arte"] });
-      setShowCopyModal(true);
-      return;
-    }
+    // Pega os nomes das artes únicas mantendo a ordem (já calculado em sortedGroups)
+    const artNames = sortedGroups.map(g => g.artName).filter(Boolean);
 
     setIsCopyingArts(true);
     setCopyResult(null);
@@ -229,8 +223,21 @@ export function BatchActions({
       </div>
 
       {selectedIds.size > 0 && (
-        <div className="flex gap-2">
-          <Button variant="outline" size="sm" onClick={handleGeneratePDF}>
+        <div className="flex items-center gap-2">
+          {/* Aviso de nomes faltando */}
+          {!allHaveArtName && (
+            <div className="flex items-center gap-1 text-orange-500 bg-orange-500/10 px-2 py-1 rounded border border-orange-500/30 text-sm">
+              <AlertCircle className="h-4 w-4" />
+              <span>{missingArtNameCount} sem nome</span>
+            </div>
+          )}
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleGeneratePDF}
+            disabled={!allHaveArtName}
+            title={!allHaveArtName ? "Preencha todos os nomes de arte primeiro" : undefined}
+          >
             <FileText className="h-4 w-4 mr-2" />
             Gerar PDF
           </Button>
@@ -238,8 +245,9 @@ export function BatchActions({
             variant="outline"
             size="sm"
             onClick={handleCopyArts}
-            disabled={isCopyingArts}
-            className="text-orange-500 hover:text-orange-600 hover:border-orange-500"
+            disabled={isCopyingArts || !allHaveArtName}
+            className="text-orange-500 hover:text-orange-600 hover:border-orange-500 disabled:text-orange-300"
+            title={!allHaveArtName ? "Preencha todos os nomes de arte primeiro" : undefined}
           >
             {isCopyingArts ? (
               <>
@@ -258,8 +266,9 @@ export function BatchActions({
               variant="outline"
               size="sm"
               onClick={handleSendPainting}
-              disabled={isSendingPainting}
-              className="text-purple-500 hover:text-purple-600 hover:border-purple-500"
+              disabled={isSendingPainting || !allHaveArtName}
+              className="text-purple-500 hover:text-purple-600 hover:border-purple-500 disabled:text-purple-300"
+              title={!allHaveArtName ? "Preencha todos os nomes de arte primeiro" : undefined}
             >
               {isSendingPainting ? (
                 <>
@@ -277,8 +286,9 @@ export function BatchActions({
           <Button
             size="sm"
             onClick={handleSendToProduction}
-            disabled={isSending}
-            className="bg-blue-600 hover:bg-blue-700"
+            disabled={isSending || !allHaveArtName}
+            className="bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400"
+            title={!allHaveArtName ? "Preencha todos os nomes de arte primeiro" : undefined}
           >
             <Factory className="h-4 w-4 mr-2" />
             Enviar para Producao ({selectedIds.size})

@@ -31,6 +31,7 @@ function GroupHeader({
   const [artName, setArtName] = useState(group.orders[0]?.artName || "");
   const [isSaving, setIsSaving] = useState(false);
 
+  const hasArtName = !!group.orders[0]?.artName;
   const displayName = group.orders[0]?.artName || `@${group.customerUser}`;
 
   const handleSave = async () => {
@@ -98,13 +99,19 @@ function GroupHeader({
           </div>
         ) : (
           <div className="flex items-center gap-2">
-            <h3 className="font-semibold">{displayName}</h3>
+            {hasArtName ? (
+              <h3 className="font-semibold text-lg">{displayName}</h3>
+            ) : (
+              <h3 className="font-semibold text-lg text-orange-500 bg-orange-500/10 px-2 py-0.5 rounded border border-orange-500/30">
+                ⚠️ {displayName}
+              </h3>
+            )}
             <button
               onClick={() => setIsEditing(true)}
-              className="p-1 hover:bg-muted rounded text-muted-foreground hover:text-foreground"
-              title="Editar nome da arte"
+              className={`p-1 rounded ${hasArtName ? "hover:bg-muted text-muted-foreground hover:text-foreground" : "bg-orange-500/20 text-orange-500 hover:bg-orange-500/30"}`}
+              title={hasArtName ? "Editar nome da arte" : "Adicionar nome da arte!"}
             >
-              <Pencil className="h-3 w-3" />
+              <Pencil className="h-4 w-4" />
             </button>
           </div>
         )}
