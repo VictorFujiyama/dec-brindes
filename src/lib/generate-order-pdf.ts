@@ -57,12 +57,21 @@ function generateOrderNote(group: OrderGroup, dateInfo: { day: string; month: st
     `;
   }).join("");
 
-  // Obs: junta todas as notas internas dos pedidos do grupo
+  // Obs: verifica urgência e junta notas internas
+  const isUrgent = group.orders.some(o => o.isUrgent);
   const obsNotes = group.orders
     .filter(o => o.internalNote)
     .map(o => o.internalNote)
     .join(" | ");
-  const obsNote = obsNotes || "";
+
+  let obsNote = "";
+  if (isUrgent && obsNotes) {
+    obsNote = `URGENTE - ${obsNotes}`;
+  } else if (isUrgent) {
+    obsNote = "URGENTE";
+  } else {
+    obsNote = obsNotes;
+  }
 
   return `
     <div class="note">
