@@ -8,6 +8,7 @@ import { CustomerOrderCards } from "./CustomerOrderCards";
 import { OrderDetailsModal } from "./OrderDetailsModal";
 import { BatchActions } from "./BatchActions";
 import { ProductionDateFilter } from "./ProductionDateFilter";
+import { SendToPaintingButton } from "./SendToPaintingButton";
 import { format } from "date-fns";
 
 interface OrderTableProps {
@@ -16,6 +17,7 @@ interface OrderTableProps {
   onUpdateMultiple: (orders: Order[]) => void;
   selectable?: boolean;
   showProductionFilter?: boolean;
+  whatsappGroupId?: string | null;
 }
 
 function GroupHeader({
@@ -119,7 +121,7 @@ function GroupHeader({
   );
 }
 
-export function OrderTable({ orders, onUpdateOrder, onUpdateMultiple, selectable, showProductionFilter }: OrderTableProps) {
+export function OrderTable({ orders, onUpdateOrder, onUpdateMultiple, selectable, showProductionFilter, whatsappGroupId }: OrderTableProps) {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [selectedProductionDate, setSelectedProductionDate] = useState<string | null>(null);
   const [detailsOrder, setDetailsOrder] = useState<Order | null>(null);
@@ -268,10 +270,19 @@ export function OrderTable({ orders, onUpdateOrder, onUpdateMultiple, selectable
                     />
                   </div>
 
-                  {/* Upload Boxes - uma vez por grupo de arte */}
-                  <div className="flex gap-2 flex-shrink-0 ml-auto">
-                    <UploadBox order={artGroupOrders[0]} type="png" onUpdateOrder={onUpdateOrder} size={uploadBoxSize} />
-                    <UploadBox order={artGroupOrders[0]} type="cdr" onUpdateOrder={onUpdateOrder} size={uploadBoxSize} />
+                  {/* Upload Boxes e botão de pintura */}
+                  <div className="flex flex-col gap-2 flex-shrink-0 ml-auto">
+                    <div className="flex gap-2">
+                      <UploadBox order={artGroupOrders[0]} type="png" onUpdateOrder={onUpdateOrder} size={uploadBoxSize} />
+                      <UploadBox order={artGroupOrders[0]} type="cdr" onUpdateOrder={onUpdateOrder} size={uploadBoxSize} />
+                    </div>
+                    {/* Botão enviar para pintura - só aparece se tem imagem PNG */}
+                    {artGroupOrders[0].artPngUrl && (
+                      <SendToPaintingButton
+                        orders={artGroupOrders}
+                        groupId={whatsappGroupId || null}
+                      />
+                    )}
                   </div>
                 </div>
               ))}

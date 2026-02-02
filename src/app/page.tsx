@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { UploadXLS } from "@/components/UploadXLS";
 import { FilterBar } from "@/components/FilterBar";
 import { OrderTable } from "@/components/OrderTable";
+import { WhatsAppConnection } from "@/components/WhatsAppConnection";
 import { Order } from "@/types/order";
 
 export default function Dashboard() {
@@ -14,6 +15,20 @@ export default function Dashboard() {
   const [isLoading, setIsLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState("PENDING");
+  const [whatsappGroupId, setWhatsappGroupId] = useState<string | null>(null);
+
+  // Carrega grupo do WhatsApp do localStorage
+  useEffect(() => {
+    const savedGroupId = localStorage.getItem("whatsappGroupId");
+    if (savedGroupId) {
+      setWhatsappGroupId(savedGroupId);
+    }
+  }, []);
+
+  const handleWhatsAppGroupSelect = (groupId: string) => {
+    setWhatsappGroupId(groupId);
+    localStorage.setItem("whatsappGroupId", groupId);
+  };
 
   const fetchOrders = useCallback(async (searchTerm?: string) => {
     setIsLoading(true);
@@ -111,10 +126,16 @@ export default function Dashboard() {
                 Gerenciador de Pedidos Shopee
               </p>
             </div>
-            <Button onClick={() => fetchOrders(search || undefined)} variant="outline" size="sm">
-              <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? "animate-spin" : ""}`} />
-              Atualizar
-            </Button>
+            <div className="flex items-center gap-2">
+              <WhatsAppConnection
+                onGroupSelect={handleWhatsAppGroupSelect}
+                selectedGroupId={whatsappGroupId}
+              />
+              <Button onClick={() => fetchOrders(search || undefined)} variant="outline" size="sm">
+                <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? "animate-spin" : ""}`} />
+                Atualizar
+              </Button>
+            </div>
           </div>
         </div>
       </header>
@@ -206,6 +227,7 @@ export default function Dashboard() {
                 onUpdateOrder={updateOrderLocal}
                 onUpdateMultiple={updateMultipleOrdersLocal}
                 selectable={status === "APPROVED"}
+                whatsappGroupId={whatsappGroupId}
                 showProductionFilter={status === "PRODUCTION"}
               />
             )}
