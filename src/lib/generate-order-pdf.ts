@@ -26,16 +26,52 @@ function groupOrdersByArtGroup(orders: Order[]): OrderGroup[] {
     groups[key].push(order);
   }
 
-  // Converte para array de OrderGroup
-  return Object.values(groups).map((groupOrders) => {
+  // Converte para array de OrderGroup com metadados para ordenação
+  const orderGroups = Object.values(groups).map((groupOrders) => {
     const firstOrder = groupOrders[0];
+    const earliestShipping = Math.min(...groupOrders.map(o => new Date(o.shippingDate).getTime()));
+    const isUrgent = groupOrders.some(o => o.isUrgent);
+
     return {
       orders: groupOrders,
-      // Usa artName individual se tiver, senão usa do primeiro do grupo
       artName: firstOrder.artName || "",
       customerUser: firstOrder.customerUser,
       shopeeOrderId: firstOrder.shopeeOrderId,
+      earliestShipping,
+      isUrgent,
     };
+  });
+
+  // Calcula a data mais cedo por cliente (para manter grupos do mesmo cliente juntos)
+  const customerEarliestDate: Record<string, number> = {};
+  const customerHasUrgent: Record<string, boolean> = {};
+  for (const group of orderGroups) {
+    const current = customerEarliestDate[group.customerUser];
+    if (current === undefined || group.earliestShipping < current) {
+      customerEarliestDate[group.customerUser] = group.earliestShipping;
+    }
+    if (group.isUrgent) {
+      customerHasUrgent[group.customerUser] = true;
+    }
+  }
+
+  // Ordena: urgentes primeiro, depois por data de envio do cliente, depois por data do grupo
+  return orderGroups.sort((a, b) => {
+    // 1. Clientes com pedidos urgentes primeiro
+    const aCustomerUrgent = customerHasUrgent[a.customerUser] ? 1 : 0;
+    const bCustomerUrgent = customerHasUrgent[b.customerUser] ? 1 : 0;
+    if (bCustomerUrgent !== aCustomerUrgent) return bCustomerUrgent - aCustomerUrgent;
+
+    // 2. Por data mais cedo do cliente (mantém mesmo cliente junto)
+    const aCustomerDate = customerEarliestDate[a.customerUser];
+    const bCustomerDate = customerEarliestDate[b.customerUser];
+    if (aCustomerDate !== bCustomerDate) return aCustomerDate - bCustomerDate;
+
+    // 3. Dentro do mesmo cliente, urgentes primeiro
+    if (a.isUrgent !== b.isUrgent) return a.isUrgent ? -1 : 1;
+
+    // 4. Dentro do mesmo cliente, por data do grupo
+    return a.earliestShipping - b.earliestShipping;
   });
 }
 
