@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Search, Calendar, Plus, Trash2 } from "lucide-react";
+import { Search, Calendar, Plus, Trash2, Send, Loader2, Check, AlertCircle } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import {
@@ -10,6 +10,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { Order } from "@/types/order";
 
 interface FilterBarProps {
   search: string;
@@ -17,8 +18,80 @@ interface FilterBarProps {
   status: string;
   onStatusChange: (value: string) => void;
   dailyQueueCount?: number;
+  dailyQueueOrders?: Order[];
+  whatsappGroupId?: string | null;
   onGenerateDailyQueue?: (count: number) => Promise<void>;
   onClearDailyQueue?: () => Promise<void>;
+}
+
+// Formata a mensagem para WhatsApp (agrupado igual às notas do PDF)
+function formatDailyQueueMessage(orders: Order[]): string {
+  // Agrupa por customerUser + artGroupId
+  const groups: Record<string, Order[]> = {};
+  for (const order of orders) {
+    const key = `${order.customerUser}_${order.artGroupId ?? 0}`;
+    if (!groups[key]) {
+      groups[key] = [];
+    }
+    groups[key].push(order);
+  }
+
+  // Converte para array com metadados para ordenação
+  const orderGroups = Object.values(groups).map((groupOrders) => {
+    const earliestShipping = Math.min(...groupOrders.map(o => new Date(o.shippingDate).getTime()));
+    const isUrgent = groupOrders.some(o => o.isUrgent);
+    const artName = groupOrders[0].artName || `@${groupOrders[0].customerUser}`;
+    const shopeeIds = [...new Set(groupOrders.map(o => o.shopeeOrderId))];
+
+    return {
+      orders: groupOrders,
+      artName,
+      shopeeIds,
+      customerUser: groupOrders[0].customerUser,
+      earliestShipping,
+      isUrgent,
+    };
+  });
+
+  // Calcula data mais cedo e urgência por cliente
+  const customerEarliestDate: Record<string, number> = {};
+  const customerHasUrgent: Record<string, boolean> = {};
+  for (const group of orderGroups) {
+    const current = customerEarliestDate[group.customerUser];
+    if (current === undefined || group.earliestShipping < current) {
+      customerEarliestDate[group.customerUser] = group.earliestShipping;
+    }
+    if (group.isUrgent) {
+      customerHasUrgent[group.customerUser] = true;
+    }
+  }
+
+  // Ordena igual ao PDF
+  orderGroups.sort((a, b) => {
+    // 1. Clientes com pedidos urgentes primeiro
+    const aCustomerUrgent = customerHasUrgent[a.customerUser] ? 1 : 0;
+    const bCustomerUrgent = customerHasUrgent[b.customerUser] ? 1 : 0;
+    if (bCustomerUrgent !== aCustomerUrgent) return bCustomerUrgent - aCustomerUrgent;
+
+    // 2. Por data mais cedo do cliente
+    const aCustomerDate = customerEarliestDate[a.customerUser];
+    const bCustomerDate = customerEarliestDate[b.customerUser];
+    if (aCustomerDate !== bCustomerDate) return aCustomerDate - bCustomerDate;
+
+    // 3. Dentro do mesmo cliente, urgentes primeiro
+    if (a.isUrgent !== b.isUrgent) return a.isUrgent ? -1 : 1;
+
+    // 4. Dentro do mesmo cliente, por data do grupo
+    return a.earliestShipping - b.earliestShipping;
+  });
+
+  // Formata as linhas: "ID1 / ID2 - Nome" ou "ID - Nome"
+  const lines = orderGroups.map(group => {
+    const idsStr = group.shopeeIds.join(" / ");
+    return `${idsStr} - ${group.artName}`;
+  });
+
+  return `*Pedidos hoje*\n\n${lines.join("\n")}\n\n*Fazer de cima para baixo*`;
 }
 
 export function FilterBar({
@@ -27,6 +100,8 @@ export function FilterBar({
   status,
   onStatusChange,
   dailyQueueCount = 0,
+  dailyQueueOrders = [],
+  whatsappGroupId,
   onGenerateDailyQueue,
   onClearDailyQueue,
 }: FilterBarProps) {
@@ -35,6 +110,56 @@ export function FilterBar({
   const [orderCount, setOrderCount] = useState("15");
   const [isGenerating, setIsGenerating] = useState(false);
   const [isClearing, setIsClearing] = useState(false);
+  const [isSendingWhatsApp, setIsSendingWhatsApp] = useState(false);
+  const [whatsAppStatus, setWhatsAppStatus] = useState<"idle" | "success" | "error">("idle");
+  const [whatsAppError, setWhatsAppError] = useState("");
+
+  // Conta grupos de arte (por customerUser + artGroupId)
+  const artGroupCount = (() => {
+    const groups = new Set<string>();
+    for (const order of dailyQueueOrders) {
+      const key = `${order.customerUser}_${order.artGroupId ?? 0}`;
+      groups.add(key);
+    }
+    return groups.size;
+  })();
+
+  const handleSendWhatsApp = async () => {
+    if (!whatsappGroupId || dailyQueueOrders.length === 0) return;
+
+    setIsSendingWhatsApp(true);
+    setWhatsAppStatus("idle");
+    setWhatsAppError("");
+
+    try {
+      const message = formatDailyQueueMessage(dailyQueueOrders);
+
+      const response = await fetch("/api/whatsapp/send-text", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          groupId: whatsappGroupId,
+          message,
+        }),
+      });
+
+      if (response.ok) {
+        setWhatsAppStatus("success");
+        setTimeout(() => setWhatsAppStatus("idle"), 3000);
+      } else {
+        const data = await response.json();
+        setWhatsAppError(data.error || "Erro ao enviar");
+        setWhatsAppStatus("error");
+        setTimeout(() => setWhatsAppStatus("idle"), 3000);
+      }
+    } catch {
+      setWhatsAppError("Erro de conexão");
+      setWhatsAppStatus("error");
+      setTimeout(() => setWhatsAppStatus("idle"), 3000);
+    } finally {
+      setIsSendingWhatsApp(false);
+    }
+  };
 
   const tabs = [
     { value: "ALL", label: "Todos" },
@@ -107,7 +232,7 @@ export function FilterBar({
         <div className="flex items-center gap-3 p-3 bg-orange-500/10 border border-orange-500/30 rounded-lg">
           <span className="text-sm text-orange-500 font-medium">
             {dailyQueueCount > 0
-              ? `${dailyQueueCount} pedido(s) na fila do dia`
+              ? `${artGroupCount} arte(s) · ${dailyQueueCount} pedido(s)`
               : "Nenhum pedido na fila do dia"}
           </span>
           <div className="flex gap-2 ml-auto">
@@ -120,6 +245,44 @@ export function FilterBar({
               <Plus className="h-4 w-4 mr-1" />
               Gerar Pedidos
             </Button>
+            {dailyQueueCount > 0 && whatsappGroupId && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleSendWhatsApp}
+                disabled={isSendingWhatsApp || whatsAppStatus !== "idle"}
+                className={
+                  whatsAppStatus === "success"
+                    ? "text-green-500 border-green-500/50"
+                    : whatsAppStatus === "error"
+                    ? "text-red-500 border-red-500/50"
+                    : "text-green-600 border-green-500/50 hover:bg-green-500/10"
+                }
+                title={formatDailyQueueMessage(dailyQueueOrders)}
+              >
+                {isSendingWhatsApp ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                    Enviando...
+                  </>
+                ) : whatsAppStatus === "success" ? (
+                  <>
+                    <Check className="h-4 w-4 mr-1" />
+                    Enviado!
+                  </>
+                ) : whatsAppStatus === "error" ? (
+                  <>
+                    <AlertCircle className="h-4 w-4 mr-1" />
+                    {whatsAppError}
+                  </>
+                ) : (
+                  <>
+                    <Send className="h-4 w-4 mr-1" />
+                    WhatsApp
+                  </>
+                )}
+              </Button>
+            )}
             {dailyQueueCount > 0 && (
               <Button
                 variant="outline"

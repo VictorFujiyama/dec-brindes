@@ -16,19 +16,29 @@ export function ProductionDateFilter({
   selectedDate,
   onDateChange,
 }: ProductionDateFilterProps) {
+  // Conta grupos de arte (para cobrança)
+  // Se artGroupId é null, cada pedido é uma arte separada
+  // Se artGroupId tem valor, pedidos com mesmo artGroupId contam como 1
+  const getArtGroupKey = (order: Order) => {
+    return order.artGroupId != null
+      ? `${order.customerUser}_group_${order.artGroupId}`
+      : `${order.customerUser}_order_${order.id}`;
+  };
+
   const availableDates = useMemo(() => {
-    const datesMap = new Map<string, { date: Date; customers: Set<string> }>();
+    const datesMap = new Map<string, { date: Date; artGroups: Set<string> }>();
 
     for (const order of orders) {
       if (order.sentToProductionAt) {
         const dateObj = new Date(order.sentToProductionAt);
         // Agrupa por dia (ignora hora/minuto)
         const dateKey = format(dateObj, "yyyy-MM-dd");
+        const artGroupKey = getArtGroupKey(order);
 
         if (datesMap.has(dateKey)) {
-          datesMap.get(dateKey)!.customers.add(order.customerUser);
+          datesMap.get(dateKey)!.artGroups.add(artGroupKey);
         } else {
-          datesMap.set(dateKey, { date: dateObj, customers: new Set([order.customerUser]) });
+          datesMap.set(dateKey, { date: dateObj, artGroups: new Set([artGroupKey]) });
         }
       }
     }
@@ -39,14 +49,14 @@ export function ProductionDateFilter({
       .map(([key, value]) => ({
         key,
         label: format(value.date, "dd/MM/yyyy (EEEE)", { locale: ptBR }),
-        count: value.customers.size,
+        count: value.artGroups.size,
       }));
   }, [orders]);
 
-  // Conta total de clientes únicos
-  const totalCustomers = useMemo(() => {
-    const uniqueCustomers = new Set(orders.map(o => o.customerUser));
-    return uniqueCustomers.size;
+  // Conta total de grupos de arte únicos
+  const totalArtGroups = useMemo(() => {
+    const uniqueGroups = new Set(orders.map(o => getArtGroupKey(o)));
+    return uniqueGroups.size;
   }, [orders]);
 
   if (availableDates.length === 0) {
@@ -63,7 +73,7 @@ export function ProductionDateFilter({
             : "bg-muted text-muted-foreground hover:bg-muted/80"
         }`}
       >
-        Todos ({totalCustomers})
+        Todos ({totalArtGroups})
       </button>
       {availableDates.map((date) => (
         <button

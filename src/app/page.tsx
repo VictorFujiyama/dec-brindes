@@ -213,6 +213,8 @@ export default function Dashboard() {
               status={status}
               onStatusChange={setStatus}
               dailyQueueCount={stats.dailyQueue}
+              dailyQueueOrders={allOrders.filter(o => o.inDailyQueue)}
+              whatsappGroupId={whatsappGroupId}
               onGenerateDailyQueue={generateDailyQueue}
               onClearDailyQueue={clearDailyQueue}
             />
