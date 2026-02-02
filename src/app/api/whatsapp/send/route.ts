@@ -42,18 +42,18 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Formata a mensagem
-    const message = formatPaintingMessage(orders);
-
-    // Pega a imagem do primeiro pedido (todos do mesmo grupo devem ter a mesma arte)
-    const imageUrl = orders[0].artPngUrl;
+    // Pega a primeira imagem disponível (pedidos não splitados compartilham a mesma arte)
+    const imageUrl = orders.find(o => o.artPngUrl)?.artPngUrl;
 
     if (!imageUrl) {
       return NextResponse.json(
-        { error: "Pedido não possui imagem da arte" },
+        { error: "Nenhum pedido possui imagem da arte" },
         { status: 400 }
       );
     }
+
+    // Formata a mensagem com TODOS os pedidos
+    const message = formatPaintingMessage(orders);
 
     // Envia a mensagem
     await sendMessage({

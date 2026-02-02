@@ -5,6 +5,13 @@ import { Paintbrush, Loader2, Check, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Order } from "@/types/order";
 
+// Verifica se o pedido precisa de pintura (degradê, bicolor, borda)
+function needsPainting(realDescription: string | null, productName: string): boolean {
+  const desc = (realDescription || productName).toLowerCase();
+  const paintingKeywords = ["degradê", "degrade", "bicolor", "borda"];
+  return paintingKeywords.some(keyword => desc.includes(keyword));
+}
+
 interface SendToPaintingButtonProps {
   orders: Order[];
   groupId: string | null;
@@ -16,18 +23,27 @@ export function SendToPaintingButton({ orders, groupId, disabled }: SendToPainti
   const [status, setStatus] = useState<"idle" | "success" | "error">("idle");
   const [errorMessage, setErrorMessage] = useState("");
 
+  // Filtra apenas pedidos que precisam de pintura
+  const ordersNeedingPainting = orders.filter(o => needsPainting(o.realDescription, o.productName));
+
+  // Se nenhum pedido precisa de pintura, não mostra o botão
+  if (ordersNeedingPainting.length === 0) {
+    return null;
+  }
+
+  // Verifica se algum pedido tem imagem
+  const hasImage = orders.some((o) => o.artPngUrl);
+
   const handleSend = async () => {
     if (!groupId) {
-      setErrorMessage("Selecione um grupo do WhatsApp primeiro");
+      setErrorMessage("Selecione um grupo");
       setStatus("error");
       setTimeout(() => setStatus("idle"), 3000);
       return;
     }
 
-    // Verifica se tem imagem
-    const hasImage = orders.some((o) => o.artPngUrl);
     if (!hasImage) {
-      setErrorMessage("Pedido não possui imagem da arte");
+      setErrorMessage("Sem imagem da arte");
       setStatus("error");
       setTimeout(() => setStatus("idle"), 3000);
       return;
@@ -56,8 +72,7 @@ export function SendToPaintingButton({ orders, groupId, disabled }: SendToPainti
         setStatus("error");
         setTimeout(() => setStatus("idle"), 3000);
       }
-    } catch (error) {
-      console.error("Erro ao enviar:", error);
+    } catch {
       setErrorMessage("Erro de conexão");
       setStatus("error");
       setTimeout(() => setStatus("idle"), 3000);
@@ -94,6 +109,21 @@ export function SendToPaintingButton({ orders, groupId, disabled }: SendToPainti
       <Button size="sm" variant="outline" className="text-red-500 border-red-500" disabled>
         <AlertCircle className="h-4 w-4 mr-1" />
         {errorMessage}
+      </Button>
+    );
+  }
+
+  if (!hasImage) {
+    return (
+      <Button
+        size="sm"
+        variant="outline"
+        disabled
+        title="Nenhum pedido possui imagem da arte"
+        className="text-gray-400 border-gray-300"
+      >
+        <Paintbrush className="h-4 w-4 mr-1" />
+        Sem arte
       </Button>
     );
   }

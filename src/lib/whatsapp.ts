@@ -203,22 +203,67 @@ export async function getGroups(): Promise<Array<{ id: string; name: string }>> 
   return groups;
 }
 
-// Formata a mensagem para pintura
+// Verifica se o pedido precisa de pintura (degradê, bicolor, borda)
+export function needsPainting(realDescription: string | null, productName: string): boolean {
+  const desc = (realDescription || productName).toLowerCase();
+
+  // Palavras-chave que indicam que precisa de pintura
+  const paintingKeywords = [
+    "degradê",
+    "degrade",
+    "bicolor",
+    "borda",
+  ];
+
+  return paintingKeywords.some(keyword => desc.includes(keyword));
+}
+
+// Formata a mensagem para pintura (apenas pedidos que precisam de pintura)
 export function formatPaintingMessage(orders: Array<{
   cupQuantity: number | null;
   realDescription: string | null;
   quantity: number;
   productName: string;
   shopeeOrderId: string;
+  isUrgent: boolean;
 }>): string {
-  const items = orders.map((order) => {
+  // Filtra apenas os pedidos que precisam de pintura
+  const paintingOrders = orders.filter(o => needsPainting(o.realDescription, o.productName));
+
+  if (paintingOrders.length === 0) {
+    return "";
+  }
+
+  const items = paintingOrders.map((order) => {
     const qty = order.cupQuantity ?? order.quantity;
-    const desc = order.realDescription || order.productName;
+    let desc = order.realDescription || order.productName;
+
+    // Remove a cor - procura por " em " ou "\nem " (com quebra de linha)
+    // Ex: "Copão 770ml Degradê em preto" → "Copão 770ml Degradê"
+    // Ex: "Copão 770ml Bicolor\n-cores\nem preto" → "Copão 770ml Bicolor\n-cores"
+    const emMatch = desc.match(/[\s\n]em\s/);
+    if (emMatch && emMatch.index !== undefined && emMatch.index > 0) {
+      desc = desc.substring(0, emMatch.index);
+    }
+
     return `${qty} ${desc}`;
   });
 
-  const uniqueIds = [...new Set(orders.map((o) => o.shopeeOrderId))];
+  const uniqueIds = [...new Set(paintingOrders.map((o) => o.shopeeOrderId))];
   const lastFourDigits = uniqueIds.map((id) => id.slice(-4)).join(" / ");
 
-  return `Pintar ${items.join(" e ")} - shopee ${lastFourDigits}`;
+  const content = items.join(" e ");
+
+  // Verifica se algum pedido é urgente
+  const isUrgent = paintingOrders.some(o => o.isUrgent);
+  const urgentSuffix = isUrgent ? " *URGENTE*" : "";
+
+  // Se tem lista com "-" (quebra de linha seguida de -), coloca shopee em nova linha sem o "-"
+  const hasListFormat = content.includes("\n-");
+
+  if (hasListFormat) {
+    return `Pintar ${content}\nshopee ${lastFourDigits}${urgentSuffix}`;
+  }
+
+  return `Pintar ${content} - shopee ${lastFourDigits}${urgentSuffix}`;
 }

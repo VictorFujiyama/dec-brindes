@@ -233,6 +233,7 @@ export function OrderTable({ orders, onUpdateOrder, onUpdateMultiple, selectable
           onSelectAll={selectAll}
           onDeselectAll={deselectAll}
           onSendToProduction={handleSendToProduction}
+          whatsappGroupId={whatsappGroupId}
         />
       )}
 
