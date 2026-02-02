@@ -276,14 +276,17 @@ function FullCard({
                 />
                 <span className="text-xs text-green-400">copos</span>
               </div>
-              <input
-                type="text"
+              <textarea
                 value={editRealDescription}
                 onChange={(e) => setEditRealDescription(e.target.value)}
-                placeholder="Descrição real do produto"
-                className="w-full bg-transparent text-sm focus:outline-none border-b border-green-500"
+                placeholder="Descrição real do produto (Shift+Enter para quebra de linha)"
+                className="w-full bg-transparent text-sm focus:outline-none border border-green-500 rounded p-1 resize-none"
+                rows={2}
                 onKeyDown={(e) => {
-                  if (e.key === "Enter") saveCupInfo();
+                  if (e.key === "Enter" && !e.shiftKey) {
+                    e.preventDefault();
+                    saveCupInfo();
+                  }
                   if (e.key === "Escape") {
                     setEditCupQuantity(order.cupQuantity?.toString() || "");
                     setEditRealDescription(order.realDescription || "");
@@ -318,7 +321,7 @@ function FullCard({
                     {order.cupQuantity || "?"} copos
                   </span>
                 </div>
-                <span className="text-xs text-green-300">
+                <span className="text-xs text-green-300 whitespace-pre-wrap">
                   {order.realDescription || "Sem descrição real"}
                 </span>
               </div>
