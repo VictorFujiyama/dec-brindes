@@ -148,10 +148,12 @@ export async function sendMessage(params: SendMessageParams): Promise<boolean> {
       const result = await pupPage.evaluate(
         async (chatId: string, base64Data: string, mimetype: string, caption: string) => {
           try {
-            const chat = await window.WWebJS.getChat(chatId, { getAsModel: false });
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const WWebJS = (window as any).WWebJS;
+            const chat = await WWebJS.getChat(chatId, { getAsModel: false });
             if (!chat) return { error: "Chat not found" };
 
-            const msg = await window.WWebJS.sendMessage(chat, "", {
+            const msg = await WWebJS.sendMessage(chat, "", {
               media: {
                 mimetype: mimetype,
                 data: base64Data,

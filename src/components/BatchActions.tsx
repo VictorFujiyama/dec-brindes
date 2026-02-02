@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Factory, FileText, CheckSquare, Square, Paintbrush, Loader2 } from "lucide-react";
+import { Factory, FileText, CheckSquare, Square, Paintbrush, Loader2, Copy, X, Check, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Order } from "@/types/order";
 import { generateOrdersPDF } from "@/lib/generate-order-pdf";
@@ -14,13 +14,10 @@ function needsPainting(realDescription: string | null, productName: string): boo
 }
 
 // Agrupa pedidos por cliente e artGroupId (mesma ordenação do PDF)
-function groupOrdersForPainting(orders: Order[]): Order[][] {
+function groupOrdersForPDF(orders: Order[]): { orders: Order[]; artName: string }[] {
   const groups: Record<string, Order[]> = {};
 
   for (const order of orders) {
-    // Só inclui pedidos que precisam de pintura
-    if (!needsPainting(order.realDescription, order.productName)) continue;
-
     // Agrupa por cliente + artGroupId
     const key = `${order.customerUser}_${order.artGroupId ?? 0}`;
     if (!groups[key]) {
@@ -30,18 +27,17 @@ function groupOrdersForPainting(orders: Order[]): Order[][] {
   }
 
   // Converte para array com metadados para ordenação
-  const orderGroups = Object.values(groups)
-    .filter(group => group.some(o => o.artPngUrl)) // Só grupos com imagem
-    .map((groupOrders) => {
-      const earliestShipping = Math.min(...groupOrders.map(o => new Date(o.shippingDate).getTime()));
-      const isUrgent = groupOrders.some(o => o.isUrgent);
-      return {
-        orders: groupOrders,
-        customerUser: groupOrders[0].customerUser,
-        earliestShipping,
-        isUrgent,
-      };
-    });
+  const orderGroups = Object.values(groups).map((groupOrders) => {
+    const earliestShipping = Math.min(...groupOrders.map(o => new Date(o.shippingDate).getTime()));
+    const isUrgent = groupOrders.some(o => o.isUrgent);
+    return {
+      orders: groupOrders,
+      artName: groupOrders[0].artName || "",
+      customerUser: groupOrders[0].customerUser,
+      earliestShipping,
+      isUrgent,
+    };
+  });
 
   // Calcula data mais cedo e urgência por cliente
   const customerEarliestDate: Record<string, number> = {};
@@ -75,7 +71,15 @@ function groupOrdersForPainting(orders: Order[]): Order[][] {
     return a.earliestShipping - b.earliestShipping;
   });
 
-  return orderGroups.map(g => g.orders);
+  return orderGroups;
+}
+
+// Filtra apenas grupos que precisam de pintura (para WhatsApp)
+function groupOrdersForPainting(orders: Order[]): Order[][] {
+  return groupOrdersForPDF(orders)
+    .filter(g => g.orders.some(o => needsPainting(o.realDescription, o.productName)))
+    .filter(g => g.orders.some(o => o.artPngUrl)) // Só grupos com imagem
+    .map(g => g.orders);
 }
 
 interface BatchActionsProps {
@@ -100,6 +104,9 @@ export function BatchActions({
   const [isSending, setIsSending] = useState(false);
   const [isSendingPainting, setIsSendingPainting] = useState(false);
   const [paintingProgress, setPaintingProgress] = useState({ current: 0, total: 0 });
+  const [isCopyingArts, setIsCopyingArts] = useState(false);
+  const [copyResult, setCopyResult] = useState<{ copied: string[]; notFound: string[] } | null>(null);
+  const [showCopyModal, setShowCopyModal] = useState(false);
 
   const selectedOrders = orders.filter((o) => selectedIds.has(o.id));
   const allSelected = orders.length > 0 && selectedIds.size === orders.length;
@@ -120,6 +127,53 @@ export function BatchActions({
       await onSendToProduction(Array.from(selectedIds));
     } finally {
       setIsSending(false);
+    }
+  };
+
+  const handleCopyArts = async () => {
+    if (selectedOrders.length === 0) return;
+
+    // Usa a mesma ordenação do PDF para pegar os nomes das artes na ordem correta
+    const sortedGroups = groupOrdersForPDF(selectedOrders);
+
+    // Pega os nomes das artes únicas mantendo a ordem
+    const artNames: string[] = [];
+    for (const group of sortedGroups) {
+      if (group.artName && !artNames.includes(group.artName)) {
+        artNames.push(group.artName);
+      }
+    }
+
+    if (artNames.length === 0) {
+      setCopyResult({ copied: [], notFound: ["Nenhum pedido com nome de arte"] });
+      setShowCopyModal(true);
+      return;
+    }
+
+    setIsCopyingArts(true);
+    setCopyResult(null);
+
+    try {
+      const response = await fetch("/api/copy-arts", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ artNames }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        setCopyResult({ copied: data.copied || [], notFound: data.notFound || [] });
+      } else {
+        setCopyResult({ copied: [], notFound: [data.error || "Erro desconhecido"] });
+      }
+
+      setShowCopyModal(true);
+    } catch {
+      setCopyResult({ copied: [], notFound: ["Erro de conexão"] });
+      setShowCopyModal(true);
+    } finally {
+      setIsCopyingArts(false);
     }
   };
 
@@ -180,6 +234,25 @@ export function BatchActions({
             <FileText className="h-4 w-4 mr-2" />
             Gerar PDF
           </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleCopyArts}
+            disabled={isCopyingArts}
+            className="text-orange-500 hover:text-orange-600 hover:border-orange-500"
+          >
+            {isCopyingArts ? (
+              <>
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                Copiando...
+              </>
+            ) : (
+              <>
+                <Copy className="h-4 w-4 mr-2" />
+                Copiar Artes
+              </>
+            )}
+          </Button>
           {whatsappGroupId && paintingGroups.length > 0 && (
             <Button
               variant="outline"
@@ -210,6 +283,74 @@ export function BatchActions({
             <Factory className="h-4 w-4 mr-2" />
             Enviar para Producao ({selectedIds.size})
           </Button>
+        </div>
+      )}
+      {/* Modal de resultado da cópia de artes */}
+      {showCopyModal && copyResult && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-background border rounded-lg shadow-lg max-w-md w-full mx-4 max-h-[80vh] overflow-hidden flex flex-col">
+            <div className="flex items-center justify-between p-4 border-b">
+              <h3 className="font-semibold">Resultado da Cópia</h3>
+              <button
+                onClick={() => setShowCopyModal(false)}
+                className="p-1 hover:bg-muted rounded"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            <div className="p-4 overflow-y-auto flex-1 space-y-4">
+              {/* Arquivos copiados */}
+              {copyResult.copied.length > 0 && (
+                <div>
+                  <h4 className="text-sm font-medium text-green-500 flex items-center gap-2 mb-2">
+                    <Check className="h-4 w-4" />
+                    Copiados ({copyResult.copied.length})
+                  </h4>
+                  <ul className="space-y-1">
+                    {copyResult.copied.map((file, i) => (
+                      <li key={i} className="text-sm text-muted-foreground pl-6 truncate" title={file}>
+                        {file}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              {/* Arquivos não encontrados */}
+              {copyResult.notFound.length > 0 && (
+                <div>
+                  <h4 className="text-sm font-medium text-red-500 flex items-center gap-2 mb-2">
+                    <AlertCircle className="h-4 w-4" />
+                    Não encontrados ({copyResult.notFound.length})
+                  </h4>
+                  <ul className="space-y-1">
+                    {copyResult.notFound.map((name, i) => (
+                      <li key={i} className="text-sm text-muted-foreground pl-6">
+                        {name}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              {/* Nenhum resultado */}
+              {copyResult.copied.length === 0 && copyResult.notFound.length === 0 && (
+                <p className="text-sm text-muted-foreground text-center">
+                  Nenhum arquivo processado
+                </p>
+              )}
+            </div>
+
+            <div className="p-4 border-t">
+              <button
+                onClick={() => setShowCopyModal(false)}
+                className="w-full bg-primary text-primary-foreground py-2 rounded hover:bg-primary/90"
+              >
+                Fechar
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>
