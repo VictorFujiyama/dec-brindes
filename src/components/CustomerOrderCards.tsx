@@ -55,6 +55,10 @@ function FullCard({
   const [isEditingCupInfo, setIsEditingCupInfo] = useState(false);
   const [editCupQuantity, setEditCupQuantity] = useState(order.cupQuantity?.toString() || "");
   const [editRealDescription, setEditRealDescription] = useState(order.realDescription || "");
+  const [showUrgentPopover, setShowUrgentPopover] = useState(false);
+  const [urgentDate, setUrgentDate] = useState(
+    order.urgentFromDate ? format(new Date(order.urgentFromDate), "yyyy-MM-dd") : ""
+  );
 
   const copyOrderId = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -63,21 +67,66 @@ function FullCard({
     setTimeout(() => setCopied(false), 2000);
   };
 
-  const toggleUrgent = async (e: React.MouseEvent) => {
+  const handleUrgentClick = (e: React.MouseEvent) => {
     e.stopPropagation();
+    if (order.isUrgent) {
+      // Se já é urgente, remove a urgência
+      removeUrgent();
+    } else {
+      // Se não é urgente, mostra o popover
+      setShowUrgentPopover(true);
+    }
+  };
+
+  const removeUrgent = async () => {
     try {
       const response = await fetch(`/api/orders/${order.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ isUrgent: !order.isUrgent }),
+        body: JSON.stringify({ isUrgent: false, urgentFromDate: null }),
       });
       if (response.ok) {
         const updated = await response.json();
         onUpdateOrder(updated);
       }
     } catch (err) {
-      console.error("Erro ao atualizar urgência:", err);
+      console.error("Erro ao remover urgência:", err);
     }
+  };
+
+  const setUrgentNow = async () => {
+    try {
+      const response = await fetch(`/api/orders/${order.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ isUrgent: true, urgentFromDate: null }),
+      });
+      if (response.ok) {
+        const updated = await response.json();
+        onUpdateOrder(updated);
+      }
+    } catch (err) {
+      console.error("Erro ao marcar urgente:", err);
+    }
+    setShowUrgentPopover(false);
+  };
+
+  const setUrgentScheduled = async () => {
+    if (!urgentDate) return;
+    try {
+      const response = await fetch(`/api/orders/${order.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ isUrgent: true, urgentFromDate: new Date(urgentDate).toISOString() }),
+      });
+      if (response.ok) {
+        const updated = await response.json();
+        onUpdateOrder(updated);
+      }
+    } catch (err) {
+      console.error("Erro ao agendar urgência:", err);
+    }
+    setShowUrgentPopover(false);
   };
 
   const toggleDailyQueue = async (e: React.MouseEvent) => {
@@ -173,8 +222,16 @@ function FullCard({
 
   const isInSeparateGroup = order.artGroupId > 0;
 
-  const statusBorderClass = order.isUrgent
+  // Verifica se é urgente efetivo (agora) ou agendado (futuro)
+  const isEffectivelyUrgent = order.isUrgent && (
+    !order.urgentFromDate || new Date(order.urgentFromDate) <= new Date()
+  );
+  const isScheduledUrgent = order.isUrgent && order.urgentFromDate && new Date(order.urgentFromDate) > new Date();
+
+  const statusBorderClass = isEffectivelyUrgent
     ? "border-l-4 border-l-red-500 bg-red-500/10"
+    : isScheduledUrgent
+    ? "border-l-4 border-l-orange-500 bg-orange-500/10"
     : order.artStatus === "SHIPPED"
     ? "border-l-4 border-l-purple-500 bg-purple-500/10"
     : order.artStatus === "PRODUCTION"
@@ -226,17 +283,66 @@ function FullCard({
                   <CalendarPlus className="h-4 w-4" />
                 )}
               </button>
-              <button
-                onClick={toggleUrgent}
-                className={`p-1 rounded transition-colors ${
-                  order.isUrgent
-                    ? "text-red-500 bg-red-500/20 hover:bg-red-500/30"
-                    : "text-muted-foreground hover:text-red-500 hover:bg-red-500/10"
-                }`}
-                title={order.isUrgent ? "Remover urgência" : "Marcar como urgente"}
-              >
-                <AlertTriangle className="h-4 w-4" />
-              </button>
+              <div className="relative">
+                <button
+                  onClick={handleUrgentClick}
+                  className={`p-1 rounded transition-colors ${
+                    order.isUrgent
+                      ? "text-red-500 bg-red-500/20 hover:bg-red-500/30"
+                      : "text-muted-foreground hover:text-red-500 hover:bg-red-500/10"
+                  }`}
+                  title={
+                    order.isUrgent
+                      ? order.urgentFromDate
+                        ? `Urgente a partir de ${format(new Date(order.urgentFromDate), "dd/MM")}`
+                        : "Remover urgência"
+                      : "Marcar como urgente"
+                  }
+                >
+                  <AlertTriangle className="h-4 w-4" />
+                </button>
+                {/* Popover de urgência */}
+                {showUrgentPopover && (
+                  <div
+                    className="absolute right-0 top-full mt-1 bg-card border rounded-lg shadow-lg p-3 z-50 w-56"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <div className="space-y-2">
+                      <p className="text-sm font-medium">Marcar como urgente</p>
+                      <button
+                        onClick={setUrgentNow}
+                        className="w-full text-left px-2 py-1.5 text-sm rounded hover:bg-red-500/20 text-red-500"
+                      >
+                        Urgente agora
+                      </button>
+                      <div className="border-t pt-2">
+                        <p className="text-xs text-muted-foreground mb-1">Agendar para:</p>
+                        <input
+                          type="date"
+                          value={urgentDate}
+                          onChange={(e) => setUrgentDate(e.target.value)}
+                          className="w-full px-2 py-1 text-sm border rounded bg-background"
+                          min={format(new Date(), "yyyy-MM-dd")}
+                        />
+                        {urgentDate && (
+                          <button
+                            onClick={setUrgentScheduled}
+                            className="w-full mt-2 px-2 py-1.5 text-sm rounded bg-orange-500 text-white hover:bg-orange-600"
+                          >
+                            Agendar urgência
+                          </button>
+                        )}
+                      </div>
+                      <button
+                        onClick={() => setShowUrgentPopover(false)}
+                        className="w-full text-center px-2 py-1 text-xs text-muted-foreground hover:text-foreground"
+                      >
+                        Cancelar
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
               {/* Botão Separar/Juntar */}
               {isInSeparateGroup ? (
                 <button
@@ -432,6 +538,14 @@ function FullCard({
             <Send className="h-3 w-3" />
             <span>
               Enviado: {format(new Date(order.sentToProductionAt), "dd/MM/yyyy", { locale: ptBR })}
+            </span>
+          </div>
+        )}
+        {isScheduledUrgent && order.urgentFromDate && (
+          <div className="flex items-center gap-1 text-xs text-orange-400">
+            <AlertTriangle className="h-3 w-3" />
+            <span>
+              Urgente a partir de {format(new Date(order.urgentFromDate), "dd/MM", { locale: ptBR })}
             </span>
           </div>
         )}

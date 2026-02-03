@@ -32,6 +32,7 @@ model Order {
   artCdrUrl          String?   // URL do arquivo CDR da arte
   shippedAt          DateTime? // Data que foi marcado como enviado
   isUrgent           Boolean   @default(false) // Pedido urgente
+  urgentFromDate     DateTime? // Data a partir da qual o pedido é urgente (null = imediato)
   inDailyQueue       Boolean   @default(false) // Na fila do dia
 
   createdAt DateTime @default(now())

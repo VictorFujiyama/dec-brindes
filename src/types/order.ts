@@ -23,6 +23,7 @@ export interface Order {
   artCdrUrl: string | null;
   shippedAt: Date | null;
   isUrgent: boolean;
+  urgentFromDate: Date | null;
   inDailyQueue: boolean;
   createdAt: Date;
   updatedAt: Date;
